@@ -1,0 +1,94 @@
+---
+title: "Preliminary_analysis"
+output: 
+  html_document:
+    toc:  true
+    toc_float:  true
+    code_folding:  show
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+This document is a simple analysis to investigate the genes
+
+# Setup
+
+## Loading in data
+
+```{r}
+dat <- read.csv("../../data/Zeisel_preprocessed.csv", row.names = 1)
+cell_type <- read.table("../../data/Zeisel_cell_info.txt", sep = "\t", header = 1)
+
+dat[1:5,1:5]
+head(cell_type)
+
+dim(dat)
+dim(cell_type)
+```
+
+## Setting up colors
+
+```{r}
+cluster_labels <- as.numeric(as.factor(cell_type$level1class))
+```
+
+# Analysis of dataset
+
+## Plotting some scatter plots
+
+```{r}
+par(mfrow = c(2,2))
+for(i in 1:4){
+ set.seed(i)
+ rand_vec <- sample(1:ncol(dat), 2)
+ idx1 <- rand_vec[1]; idx2 <- rand_vec[2]
+ 
+ plot(dat[,idx1], dat[,idx2], col = cluster_labels, 
+      pch = 16, xlab = paste0(colnames(dat)[idx1], ", (", idx1, ")"),
+      ylab = paste0(colnames(dat)[idx2], ", (", idx2, ")"), asp = T)
+}
+```
+
+```{r, cache = T}
+cor_mat <- stats::cor(dat)
+cor_mat[upper.tri(cor_mat, diag = T)] <- NA
+cor_mat[1:5,1:5]
+
+# plot the smallest correlations
+cor_vec <- sort(abs(cor_mat), decreasing = T)
+plot(cor_vec)
+```
+
+## Plotting scatterplots with high correlations
+
+```{r}
+#plot the high correlations
+par(mfrow = c(2,2))
+for(i in 1:4){
+ idx <- which(abs(cor_mat) == cor_vec[i], arr.ind = T)
+ idx1 <- idx[1]; idx2 <- idx[2]
+ 
+ plot(dat[,idx1], dat[,idx2], col = cluster_labels, asp = T,
+      pch = 16, xlab = paste0(colnames(dat)[idx1], ", (", idx1, ")"),
+      ylab = paste0(colnames(dat)[idx2], ", (", idx2, ")"), 
+      main = paste0("Correlation of ", round(cor_mat[idx1, idx2], 3)))
+}
+```
+
+## Plotting scatterplots with low correlations
+
+```{r}
+#plot the lowest correlations
+par(mfrow = c(2,2))
+for(i in 1:4){
+ idx <- which(abs(cor_mat) == rev(cor_vec)[i], arr.ind = T)
+ idx1 <- idx[1]; idx2 <- idx[2]
+ 
+ plot(dat[,idx1], dat[,idx2], col = cluster_labels, asp = T,
+      pch = 16, xlab = paste0(colnames(dat)[idx1], ", (", idx1, ")"),
+      ylab = paste0(colnames(dat)[idx2], ", (", idx2, ")"), 
+      main = paste0("Correlation of ", round(cor_mat[idx1, idx2], 3)))
+}
+```
