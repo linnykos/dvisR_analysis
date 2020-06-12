@@ -16,8 +16,6 @@ results/*.RData
 simulation/*.RData
 experiment/*.RData
 data/*.RData
-*.html
-.html
 *.js
 .js
 *.css
