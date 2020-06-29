@@ -1,0 +1,246 @@
+---
+title: "celltype_Practice"
+output: 
+  html_document:
+    toc:  true
+    toc_float:  true
+    code_folding:  show
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Data Import
+
+## Import dataset
+
+```{r}
+# Import Ziesel dataset
+dat <- read.csv("Zeisel_preprocessed.csv", row.names = 1)
+cell_type <- read.table("Zeisel_cell_info.txt", sep = "\t", header = 1)
+
+# Get the labels for each cell
+cluster_labels <- as.numeric(as.factor(cell_type$level1class))
+```
+
+## Divide the dataset by cell type
+
+```{r}
+cell_labels <- unique(cell_type$level1class)
+subset_data <- list()
+
+for (i in 1:length(cell_labels)){
+  label <- cell_labels[i]
+  extracted <- dat[which(cell_type$level1class == label),]
+  subset_data[[i]] <- extracted
+}
+```
+
+```{r}
+pearson_avg <- c()
+
+pearson_max <- c()
+pearson_max_pair1 <- c()
+pearson_max_pair2 <- c()
+
+pearson_min <- c()
+pearson_min_pair1 <- c()
+pearson_min_pair2 <- c()
+
+for (i in 1:length(cell_labels)){
+  subset_pearson <- cor(subset_data[[i]], method = "pearson")
+  
+  pearson_avg <- c(pearson_avg, median(subset_pearson))
+  
+  subset_pearson[upper.tri(subset_pearson, diag = T)] <- NA
+  pearson_vec <- sort(abs(subset_pearson), decreasing = T)
+  
+  max_idx <- which(abs(subset_pearson) == pearson_vec[1], arr.ind = T)
+  idx1 <- max_idx[1]; idx2 <- max_idx[1,2]
+  
+  pearson_max_pair1 <- c(pearson_max_pair1, idx1)
+  pearson_max_pair2 <- c(pearson_max_pair2, idx2)
+  
+  pearson_max <- c(pearson_max, subset_pearson[idx1, idx2])
+  
+  min_idx <- which(abs(subset_pearson) == rev(pearson_vec)[1], arr.ind = T)
+  idx1 <- min_idx[1]; idx2 <- min_idx[1,2]
+  
+  pearson_min_pair1 <- c(pearson_min_pair1, idx1)
+  pearson_min_pair2 <- c(pearson_min_pair2, idx2)
+  
+  pearson_min <- c(pearson_min, subset_pearson[idx1, idx2])
+}
+```
+
+```{r}
+par(mfrow = c(2,4))
+for (i in 1:length(cell_labels)){
+  sub_dat <- subset_data[[i]]
+  idx1 <- pearson_max_pair1[i]; idx2 <- pearson_max_pair2[i]
+  plot(sub_dat[,idx1], sub_dat[,idx2], asp = T,
+      pch = 16, xlab = paste0(colnames(sub_dat)[idx1], ", (", idx1, ")"),
+      ylab = paste0(colnames(sub_dat)[idx2], ", (", idx2, ")"), 
+      main = paste0("Correlation of ", round(pearson_max[i], 3)))
+}
+```
+
+```{r}
+par(mfrow = c(2,4))
+for (i in 1:length(cell_labels)){
+  sub_dat <- subset_data[[i]]
+  idx1 <- pearson_min_pair1[i]; idx2 <- pearson_min_pair2[i]
+  plot(sub_dat[,idx1], sub_dat[,idx2], asp = T,
+      pch = 16, xlab = paste0(colnames(sub_dat)[idx1], ", (", idx1, ")"),
+      ylab = paste0(colnames(sub_dat)[idx2], ", (", idx2, ")"), 
+      main = paste0("Correlation of ", round(pearson_min[i], 3)))
+}
+```
+
+```{r}
+spearman_avg <- c()
+
+spearman_max <- c()
+spearman_max_pair1 <- c()
+spearman_max_pair2 <- c()
+
+spearman_min <- c()
+spearman_min_pair1 <- c()
+spearman_min_pair2 <- c()
+
+for (i in 1:length(cell_labels)){
+  subset_spearman <- cor(subset_data[[i]], method = "spearman")
+  
+  spearman_avg <- c(spearman_avg, median(subset_spearman))
+  
+  subset_spearman[upper.tri(subset_spearman, diag = T)] <- NA
+  spearman_vec <- sort(abs(subset_spearman), decreasing = T)
+  
+  max_idx <- which(abs(subset_spearman) == spearman_vec[1], arr.ind = T)
+  idx1 <- max_idx[1]; idx2 <- max_idx[1,2]
+  
+  spearman_max_pair1 <- c(spearman_max_pair1, idx1)
+  spearman_max_pair2 <- c(spearman_max_pair2, idx2)
+  
+  spearman_max <- c(spearman_max, subset_spearman[idx1, idx2])
+  
+  min_idx <- which(abs(subset_spearman) == rev(spearman_vec)[1], arr.ind = T)
+  idx1 <- min_idx[1]; idx2 <- min_idx[1,2]
+  
+  spearman_min_pair1 <- c(spearman_min_pair1, idx1)
+  spearman_min_pair2 <- c(spearman_min_pair2, idx2)
+  
+  spearman_min <- c(spearman_min, subset_spearman[idx1, idx2])
+}
+```
+
+```{r}
+par(mfrow = c(2,4))
+for (i in 1:length(cell_labels)){
+  sub_dat <- subset_data[[i]]
+  idx1 <- spearman_max_pair1[i]; idx2 <- spearman_max_pair2[i]
+  plot(sub_dat[,idx1], sub_dat[,idx2], asp = T,
+      pch = 16, xlab = paste0(colnames(sub_dat)[idx1], ", (", idx1, ")"),
+      ylab = paste0(colnames(sub_dat)[idx2], ", (", idx2, ")"), 
+      main = paste0("Correlation of ", round(spearman_max[i], 3)))
+}
+```
+
+```{r}
+par(mfrow = c(2,4))
+for (i in 1:length(cell_labels)){
+  sub_dat <- subset_data[[i]]
+  idx1 <- spearman_min_pair1[i]; idx2 <- spearman_min_pair2[i]
+  plot(sub_dat[,idx1], sub_dat[,idx2], asp = T,
+      pch = 16, xlab = paste0(colnames(sub_dat)[idx1], ", (", idx1, ")"),
+      ylab = paste0(colnames(sub_dat)[idx2], ", (", idx2, ")"), 
+      main = paste0("Correlation of ", round(spearman_min[i], 3)))
+}
+```
+
+```{r cachedChunk, cache=TRUE, warning=FALSE}
+kendall_avg <- c()
+
+kendall_max <- c()
+kendall_max_pair1 <- c()
+kendall_max_pair2 <- c()
+
+kendall_min <- c()
+kendall_min_pair1 <- c()
+kendall_min_pair2 <- c()
+
+for (i in 1:length(cell_labels)){
+  subset_kendall <- cor(subset_data[[i]], method = "kendall")
+  
+  kendall_avg <- c(kendall_avg, median(subset_kendall))
+  
+  subset_kendall[upper.tri(subset_kendall, diag = T)] <- NA
+  kendall_vec <- sort(abs(subset_kendall), decreasing = T)
+  
+  max_idx <- which(abs(subset_kendall) == kendall_vec[1], arr.ind = T)
+  idx1 <- max_idx[1]; idx2 <- max_idx[1,2]
+  
+  kendall_max_pair1 <- c(kendall_max_pair1, idx1)
+  kendall_max_pair2 <- c(kendall_max_pair2, idx2)
+  
+  kendall_max <- c(kendall_max, subset_kendall[idx1, idx2])
+  
+  min_idx <- which(abs(subset_kendall) == rev(kendall_vec)[1], arr.ind = T)
+  idx1 <- min_idx[1]; idx2 <- min_idx[1,2]
+  
+  kendall_min_pair1 <- c(kendall_min_pair1, idx1)
+  kendall_min_pair2 <- c(kendall_min_pair2, idx2)
+  
+  kendall_min <- c(kendall_min, subset_kendall[idx1, idx2])
+}
+```
+
+```{r}
+par(mfrow = c(2,4))
+for (i in 1:length(cell_labels)){
+  sub_dat <- subset_data[[i]]
+  idx1 <- kendall_max_pair1[i]; idx2 <- kendall_max_pair2[i]
+  plot(sub_dat[,idx1], sub_dat[,idx2], asp = T,
+      pch = 16, xlab = paste0(colnames(sub_dat)[idx1], ", (", idx1, ")"),
+      ylab = paste0(colnames(sub_dat)[idx2], ", (", idx2, ")"), 
+      main = paste0("Correlation of ", round(kendall_max[i], 3)))
+}
+```
+
+```{r}
+par(mfrow = c(2,4))
+for (i in 1:length(cell_labels)){
+  sub_dat <- subset_data[[i]]
+  idx1 <- kendall_min_pair1[i]; idx2 <- kendall_min_pair2[i]
+  plot(sub_dat[,idx1], sub_dat[,idx2], asp = T,
+      pch = 16, xlab = paste0(colnames(sub_dat)[idx1], ", (", idx1, ")"),
+      ylab = paste0(colnames(sub_dat)[idx2], ", (", idx2, ")"), 
+      main = paste0("Correlation of ", round(kendall_min[i], 3)))
+}
+```
+
+```{r}
+subset_kendall1 <- cor(subset_data[[1]], method = "kendall")
+  
+kendall_avg1 <- median(subset_kendall1, na.rm = TRUE)
+  
+subset_kendall1[upper.tri(subset_kendall1, diag = T)] <- NA
+kendall_vec1 <- sort(abs(subset_kendall1), decreasing = T)
+
+min_idx <- which(abs(subset_kendall1) == rev(kendall_vec1)[1], arr.ind = T)
+idx11 <- min_idx[1]; idx21 <- min_idx[2]
+  
+kendall_min_pair1 <- c(kendall_min_pair1, idx1)
+kendall_min_pair2 <- c(kendall_min_pair2, idx2)
+  
+kendall_min1 <- subset_kendall1[9, 2]
+
+
+```
+
+```{r}
+co
+
+```
+
