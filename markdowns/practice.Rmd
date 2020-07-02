@@ -242,8 +242,7 @@ hoeffd_cor_mat <- hoeffd(x = as.matrix(sub_dat))
 
 hoeff_dist <- hoeffd_cor_mat$D
 
-#hoeff_dist
-
+hoeff_dist[upper.tri(hoeff_dist, diag = T)] <- NA
 ```
 
 ```{r}
@@ -271,7 +270,7 @@ for(i in 1:4){
 par(mfrow = c(2,2))
 for(i in 1:4){
  idx <- which(abs(hoeff_dist) == rev(cor_hoeff_vec)[i], arr.ind = T)
- idx1 <- idx[1]; idx2 <- idx[1,2]
+ idx1 <- idx[1,1]; idx2 <- idx[1,2]
  
  plot(sub_dat[,idx1], sub_dat[,idx2], col = sub_cluster_labels, asp = T,
       pch = 16, xlab = paste0(colnames(sub_dat)[idx1], ", (", idx1, ")"),
@@ -335,13 +334,48 @@ for(i in 1:4){
 }
 ```
 
-## (HSIC)
+## MIC
+
+```{r, cache=TRUE, warning=FALSE}
+library(minerva)
+
+cor_MIC <- mine(sub_dat)
+cor_MIC_mat <- cor_MIC$MIC
+```
 
 ```{r}
-library(dHSIC)
+cor_MIC_mat[upper.tri(cor_MIC_mat, diag = T)] <- NA
 
-dhsic(sub_dat)
+cor_MIC_vec <- sort(abs(cor_MIC_mat), decreasing = T)
+plot(cor_MIC_vec)
+```
 
+```{r}
+#plot the high correlations
+par(mfrow = c(2,2))
+idx <- which(abs(cor_MIC_mat) == (cor_MIC_vec)[i], arr.ind = T)
+
+for(i in 1:4){
+ idx1 <- idx[i, 1]; idx2 <- idx[i,2]
+ plot(sub_dat[,idx1], sub_dat[,idx2], col = sub_cluster_labels, asp = T,
+      pch = 16, xlab = paste0(colnames(sub_dat)[idx1], ", (", idx1, ")"),
+      ylab = paste0(colnames(sub_dat)[idx2], ", (", idx2, ")"), 
+      main = paste0("Correlation of ", round(cor_MIC_mat[idx1, idx2], 3)))
+}
+```
+
+```{r}
+#plot the lowest correlations
+par(mfrow = c(2,2))
+
+for(i in 1:4){
+ idx <- which(abs(cor_MIC_mat) == rev(cor_MIC_vec)[i], arr.ind = T)
+ idx1 <- idx[1]; idx2 <- idx[2]
+ plot(sub_dat[,idx1], sub_dat[,idx2], col = sub_cluster_labels, asp = T,
+      pch = 16, xlab = paste0(colnames(sub_dat)[idx1], ", (", idx1, ")"),
+      ylab = paste0(colnames(dat)[idx2], ", (", idx2, ")"), 
+      main = paste0("Correlation of ", round(cor_MIC_mat[idx1, idx2], 3)))
+}
 ```
 
 # Find the indices that have the contrast measure of dependency.
@@ -352,16 +386,19 @@ cor_contrast1 <- (abs(cor_pearson_mat) < 0.3) & (abs(cor_spearman_mat) > 0.7)
 cor_contrast_ind1 <- which(cor_contrast1, arr.ind = T)
 
 # high pearson and low spearman
-cor_contrast2 <- (abs(cor_pearson_mat) > 0.7) & (abs(cor_spearman_mat) < 0.2)
+cor_contrast2 <- (abs(cor_pearson_mat) > 0.8) & (abs(cor_spearman_mat) < 0.2)
 cor_contrast_ind2 <- which(cor_contrast2, arr.ind = T)
+nrow(cor_contrast_ind2)
 
 # low pearson and high kendall
-cor_contrast3 <- (abs(cor_pearson_mat) < 0.2) & (abs(cor_kendall_mat) > 0.7)
+cor_contrast3 <- (abs(cor_pearson_mat) < 0.2) & (abs(cor_kendall_mat) > 0.8)
 cor_contrast_ind3 <- which(cor_contrast3, arr.ind = T)
+nrow(cor_contrast_ind3)
 
 # high pearson and low kendall
-cor_contrast4 <- (abs(cor_pearson_mat) > 0.7) & (abs(cor_kendall_mat) < 0.2)
+cor_contrast4 <- (abs(cor_pearson_mat) > 0.8) & (abs(cor_kendall_mat) < 0.2)
 cor_contrast_ind4 <- which(cor_contrast4, arr.ind = T)
+nrow(cor_contrast_ind4)
 
 # low pearson and high distance correlation
 cor_contrast5 <- (abs(cor_pearson_mat) < 0.2) & (dist_cor_mat > 0.6)
@@ -370,9 +407,20 @@ cor_contrast_ind5 <- which(cor_contrast5, arr.ind = T)
 # high pearson and low distance correlation
 cor_contrast6 <- (abs(cor_pearson_mat) > 0.6) & (dist_cor_mat < 0.4)
 cor_contrast_ind6 <- which(cor_contrast6, arr.ind = T)
+nrow(cor_contrast_ind6)
+
+# low pearson and high MIC
+cor_contrast7 <- (abs(cor_pearson_mat) < 0.2) & (abs(cor_MIC_mat) > 0.75)
+cor_contrast_ind7 <- which(cor_contrast7, arr.ind = T)
+nrow(cor_contrast_ind7)
+
+# high pearson and low MIC
+cor_contrast8 <- (abs(cor_pearson_mat) > 0.8) & (abs(cor_MIC_mat) < 0.25)
+cor_contrast_ind8 <- which(cor_contrast8, arr.ind = T)
+nrow(cor_contrast_ind8)
 ```
 
-## Visualization of low pearson(<0.3) and high spearman(>0.7)
+## Visualization of low pearson (<0.3) and high spearman (>0.7)
 
 ```{r}
 par(mfrow = c(2, 3))
@@ -387,10 +435,9 @@ for (i in 1:nrow(cor_contrast_ind1)){
 }
 ```
 
-## Visualization of low pearson(<0.2) and high distance correlation(>0.6)
+## Visualization of low pearson (<0.2) and high distance correlation (>0.6)
 
 ```{r}
-
 par(mfrow = c(2, 3))
 
 for (i in 1:nrow(cor_contrast_ind5)){
@@ -401,5 +448,37 @@ for (i in 1:nrow(cor_contrast_ind5)){
       main = paste(paste0("Pearson of ", round(cor_pearson_mat[index1, index2], 3)),
                    "\n",
                    paste0("Dist.Cor of ", round(dist_cor_mat[index1, index2], 3))))
+}
+```
+
+## Visualization of low pearson (< 0.2) and high MIC (> 0.75)
+
+```{r}
+par(mfrow = c(2, 4))
+
+for (i in 1:nrow(cor_contrast_ind7)){
+   index1 <- cor_contrast_ind7[i, 1]; index2 <- cor_contrast_ind7[i, 2]
+   plot(sub_dat[,index1], sub_dat[,index2], col = sub_cluster_labels, asp = T,
+      pch = 16, xlab = paste0(colnames(sub_dat)[index1], ", (", idx1, ")"),
+      ylab = paste0(colnames(sub_dat)[index2], ", (", idx2, ")"), 
+      main = paste(paste0("Pearson of ", round(cor_pearson_mat[index1, index2], 3)),
+                   "\n",
+                   paste0("MIC of ", round(cor_MIC_mat[index1, index2], 3))))
+}
+```
+
+## Visualization of high pearson (> 0.8) and low MIC (< 0.25)
+
+```{r}
+par(mfrow = c(1,3))
+
+for (i in 1:nrow(cor_contrast_ind8)){
+   index1 <- cor_contrast_ind8[i, 1]; index2 <- cor_contrast_ind8[i, 2]
+   plot(sub_dat[,index1], sub_dat[,index2], col = sub_cluster_labels, asp = T,
+      pch = 16, xlab = paste0(colnames(sub_dat)[index1], ", (", idx1, ")"),
+      ylab = paste0(colnames(sub_dat)[index2], ", (", idx2, ")"), 
+      main = paste(paste0("Pearson of ", round(cor_pearson_mat[index1, index2], 3)),
+                   "\n",
+                   paste0("MIC of ", round(cor_MIC_mat[index1, index2], 3))))
 }
 ```
