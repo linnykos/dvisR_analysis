@@ -27,6 +27,8 @@ cluster_labels <- as.numeric(as.factor(cell_type$level1class))
 ```
 
 ```{r}
+set.seed(10)
+
 rand_ind <- sample(nrow(dat), 300)
 sub_dat <- dat[rand_ind, ]
 
@@ -151,8 +153,8 @@ plot(cor_kendall_vec)
 #plot the high correlations
 par(mfrow = c(2,2))
 for(i in 1:4){
- idx <- which(abs(cor_kendall_mat) == cor_kendall_vec[i], arr.ind = T)
- idx1 <- idx[1]; idx2 <- idx[2]
+ idx <- which(abs(cor_kendall_mat) == cor_kendall_vec, arr.ind = T)
+ idx1 <- idx[i,1]; idx2 <- idx[i,2]
  
  plot(sub_dat[,idx1], sub_dat[,idx2], col = sub_cluster_labels, asp = T,
       pch = 16, xlab = paste0(colnames(sub_dat)[idx1], ", (", idx1, ")"),
@@ -165,13 +167,58 @@ for(i in 1:4){
 #plot the lowest correlations
 par(mfrow = c(2,2))
 for(i in 1:4){
- idx <- which(abs(cor_kendall_mat) == rev(cor_kendall_vec)[i], arr.ind = T)
- idx1 <- idx[1]; idx2 <- idx[2]
+ idx <- which(abs(cor_kendall_mat) == rev(cor_kendall_vec), arr.ind = T)
+ idx1 <- idx[i,1]; idx2 <- idx[i,2]
  
  plot(sub_dat[,idx1], sub_dat[,idx2], col = sub_cluster_labels, asp = T,
       pch = 16, xlab = paste0(colnames(sub_dat)[idx1], ", (", idx1, ")"),
       ylab = paste0(colnames(sub_dat)[idx2], ", (", idx2, ")"), 
       main = paste0("Correlation of ", round(cor_kendall_mat[idx1, idx2], 3)))
+}
+```
+
+## 3-1. Faster Kendall's tau (pcaPP)
+
+```{r}
+library(pcaPP)
+
+faster_kendall_mat <- cor.fk(sub_dat)
+
+faster_kendall_mat[upper.tri(faster_kendall_mat, diag = T)] <- NA
+faster_kendall_mat[1:5,1:5]
+```
+
+```{r}
+# plot the smallest correlations
+faster_kendall_vec <- sort(abs(faster_kendall_mat), decreasing = T)
+plot(faster_kendall_vec)
+```
+
+```{r}
+#plot the high correlations
+par(mfrow = c(2,2))
+for(i in 1:4){
+ idx <- which(abs(faster_kendall_mat) == faster_kendall_vec, arr.ind = T)
+ idx1 <- idx[i,1]; idx2 <- idx[i,2]
+ 
+ plot(sub_dat[,idx1], sub_dat[,idx2], col = sub_cluster_labels, asp = T,
+      pch = 16, xlab = paste0(colnames(sub_dat)[idx1], ", (", idx1, ")"),
+      ylab = paste0(colnames(sub_dat)[idx2], ", (", idx2, ")"), 
+      main = paste0("Correlation of ", round(faster_kendall_mat[idx1, idx2], 3)))
+}
+```
+
+```{r}
+#plot the lowest correlations
+par(mfrow = c(2,2))
+for(i in 1:4){
+ idx <- which(abs(faster_kendall_mat) == rev(faster_kendall_vec), arr.ind = T)
+ idx1 <- idx[i,1]; idx2 <- idx[i,2]
+ 
+ plot(sub_dat[,idx1], sub_dat[,idx2], col = sub_cluster_labels, asp = T,
+      pch = 16, xlab = paste0(colnames(sub_dat)[idx1], ", (", idx1, ")"),
+      ylab = paste0(colnames(sub_dat)[idx2], ", (", idx2, ")"), 
+      main = paste0("Correlation of ", round(faster_kendall_mat[idx1, idx2], 3)))
 }
 ```
 
@@ -210,7 +257,7 @@ for(i in 1:4){
  idx <- which(abs(dist_cor_mat) == dist_cor_vec[i], arr.ind = T)
  idx1 <- idx[1]; idx2 <- idx[2]
  
- plot(dat[,idx1], dat[,idx2], col = sub_cluster_labels, asp = T,
+ plot(sub_dat[,idx1], sub_dat[,idx2], col = sub_cluster_labels, asp = T,
       pch = 16, xlab = paste0(colnames(dat)[idx1], ", (", idx1, ")"),
       ylab = paste0(colnames(dat)[idx2], ", (", idx2, ")"), 
       main = paste0("Correlation of ", round(dist_cor_mat[idx1, idx2], 3)))
@@ -224,7 +271,7 @@ for(i in 1:4){
  idx <- which(abs(dist_cor_mat) == rev(dist_cor_vec)[i], arr.ind = T)
  idx1 <- idx[1]; idx2 <- idx[2]
  
- plot(dat[,idx1], dat[,idx2], col = sub_cluster_labels, asp = T,
+ plot(sub_dat[,idx1], sub_dat[,idx2], col = sub_cluster_labels, asp = T,
       pch = 16, xlab = paste0(colnames(dat)[idx1], ", (", idx1, ")"),
       ylab = paste0(colnames(dat)[idx2], ", (", idx2, ")"), 
       main = paste0("Correlation of ", round(dist_cor_mat[idx1, idx2], 3)))
@@ -334,7 +381,7 @@ for(i in 1:4){
 }
 ```
 
-## MIC
+## 7. Maximum Information Coefficient (MIC)
 
 ```{r, cache=TRUE, warning=FALSE}
 library(minerva)
@@ -353,11 +400,11 @@ plot(cor_MIC_vec)
 ```{r}
 #plot the high correlations
 par(mfrow = c(2,2))
-idx <- which(abs(cor_MIC_mat) == (cor_MIC_vec)[i], arr.ind = T)
 
 for(i in 1:4){
- idx1 <- idx[i, 1]; idx2 <- idx[i,2]
- plot(sub_dat[,idx1], sub_dat[,idx2], col = sub_cluster_labels, asp = T,
+  idx <- which(abs(cor_MIC_mat) == (cor_MIC_vec)[i], arr.ind = T)
+  idx1 <- idx[i, 1]; idx2 <- idx[i,2]
+  plot(sub_dat[,idx1], sub_dat[,idx2], col = sub_cluster_labels, asp = T,
       pch = 16, xlab = paste0(colnames(sub_dat)[idx1], ", (", idx1, ")"),
       ylab = paste0(colnames(sub_dat)[idx2], ", (", idx2, ")"), 
       main = paste0("Correlation of ", round(cor_MIC_mat[idx1, idx2], 3)))
@@ -375,6 +422,54 @@ for(i in 1:4){
       pch = 16, xlab = paste0(colnames(sub_dat)[idx1], ", (", idx1, ")"),
       ylab = paste0(colnames(dat)[idx2], ", (", idx2, ")"), 
       main = paste0("Correlation of ", round(cor_MIC_mat[idx1, idx2], 3)))
+}
+```
+
+## 8. Chatterjee's method
+
+```{r}
+library(XICOR)
+
+XI_cor_mat <- matrix(nrow = ncol(sub_dat), ncol = ncol(sub_dat))
+
+for (i in 1:ncol(sub_dat)){
+  for (j in 1:ncol(sub_dat)){
+    XI_cor_mat[i,j] <- calculateXI(as.numeric(sub_dat[, i]), as.numeric(sub_dat[, j]))
+  }
+}
+```
+
+```{r}
+XI_cor_mat[upper.tri(XI_cor_mat, diag = T)] <- NA
+
+XI_cor_vec <- sort(abs(XI_cor_mat), decreasing = T)
+plot(XI_cor_vec)
+```
+
+```{r}
+#plot the high correlations
+par(mfrow = c(2,2))
+for(i in 1:4){
+  idx <- which(abs(XI_cor_mat) == (XI_cor_vec)[i], arr.ind = T)
+  idx1 <- idx[1]; idx2 <- idx[2]
+  plot(sub_dat[,idx1], sub_dat[,idx2], col = sub_cluster_labels, asp = T,
+      pch = 16, xlab = paste0(colnames(sub_dat)[idx1], ", (", idx1, ")"),
+      ylab = paste0(colnames(sub_dat)[idx2], ", (", idx2, ")"), 
+      main = paste0("Correlation of ", round(XI_cor_mat[idx1, idx2], 3)))
+}
+```
+
+```{r}
+#plot the lowest correlations
+par(mfrow = c(2,2))
+
+for(i in 1:4){
+ idx <- which(abs(XI_cor_mat) == rev(XI_cor_vec)[i], arr.ind = T)
+ idx1 <- idx[i, 1]; idx2 <- idx[i, 2]
+ plot(sub_dat[,idx1], sub_dat[,idx2], col = sub_cluster_labels, asp = T,
+      pch = 16, xlab = paste0(colnames(sub_dat)[idx1], ", (", idx1, ")"),
+      ylab = paste0(colnames(dat)[idx2], ", (", idx2, ")"), 
+      main = paste0("Correlation of ", round(XI_cor_mat[idx1, idx2], 3)))
 }
 ```
 
@@ -415,9 +510,19 @@ cor_contrast_ind7 <- which(cor_contrast7, arr.ind = T)
 nrow(cor_contrast_ind7)
 
 # high pearson and low MIC
-cor_contrast8 <- (abs(cor_pearson_mat) > 0.8) & (abs(cor_MIC_mat) < 0.25)
+cor_contrast8 <- (abs(cor_pearson_mat) > 0.75) & (abs(cor_MIC_mat) < 0.25)
 cor_contrast_ind8 <- which(cor_contrast8, arr.ind = T)
 nrow(cor_contrast_ind8)
+
+# low pearson and high XI
+cor_contrast9 <- (abs(cor_pearson_mat) < 0.45) & (abs(XI_cor_mat) > 0.55)
+cor_contrast_ind9 <- which(cor_contrast9, arr.ind = T)
+nrow(cor_contrast_ind9)
+
+# high pearson and low XI
+cor_contrast10 <- (abs(cor_pearson_mat) > 0.85) & (abs(XI_cor_mat) < 0.10)
+cor_contrast_ind10 <- which(cor_contrast10, arr.ind = T)
+nrow(cor_contrast_ind10)
 ```
 
 ## Visualization of low pearson (<0.3) and high spearman (>0.7)
@@ -427,8 +532,8 @@ par(mfrow = c(2, 3))
 for (i in 1:nrow(cor_contrast_ind1)){
    index1 <- cor_contrast_ind1[i, 1]; index2 <- cor_contrast_ind1[i, 2]
    plot(sub_dat[,index1], sub_dat[,index2], col = sub_cluster_labels, asp = T,
-      pch = 16, xlab = paste0(colnames(sub_dat)[index1], ", (", idx1, ")"),
-      ylab = paste0(colnames(sub_dat)[index2], ", (", idx2, ")"), 
+      pch = 16, xlab = paste0(colnames(sub_dat)[index1], ", (", index1, ")"),
+      ylab = paste0(colnames(sub_dat)[index2], ", (", index2, ")"), 
       main = paste(paste0("Pearson of ", round(cor_pearson_mat[index1, index2], 3)),
                    "\n",
                    paste0("Spearman of ", round(cor_spearman_mat[index1, index2], 3))))
@@ -443,8 +548,8 @@ par(mfrow = c(2, 3))
 for (i in 1:nrow(cor_contrast_ind5)){
    index1 <- cor_contrast_ind5[i, 1]; index2 <- cor_contrast_ind5[i, 2]
    plot(sub_dat[,index1], sub_dat[,index2], col = sub_cluster_labels, asp = T,
-      pch = 16, xlab = paste0(colnames(sub_dat)[index1], ", (", idx1, ")"),
-      ylab = paste0(colnames(sub_dat)[index2], ", (", idx2, ")"), 
+      pch = 16, xlab = paste0(colnames(sub_dat)[index1], ", (", index1, ")"),
+      ylab = paste0(colnames(sub_dat)[index2], ", (", index2, ")"), 
       main = paste(paste0("Pearson of ", round(cor_pearson_mat[index1, index2], 3)),
                    "\n",
                    paste0("Dist.Cor of ", round(dist_cor_mat[index1, index2], 3))))
@@ -459,26 +564,58 @@ par(mfrow = c(2, 4))
 for (i in 1:nrow(cor_contrast_ind7)){
    index1 <- cor_contrast_ind7[i, 1]; index2 <- cor_contrast_ind7[i, 2]
    plot(sub_dat[,index1], sub_dat[,index2], col = sub_cluster_labels, asp = T,
-      pch = 16, xlab = paste0(colnames(sub_dat)[index1], ", (", idx1, ")"),
-      ylab = paste0(colnames(sub_dat)[index2], ", (", idx2, ")"), 
+      pch = 16, xlab = paste0(colnames(sub_dat)[index1], ", (", index1, ")"),
+      ylab = paste0(colnames(sub_dat)[index2], ", (", index2, ")"), 
       main = paste(paste0("Pearson of ", round(cor_pearson_mat[index1, index2], 3)),
                    "\n",
                    paste0("MIC of ", round(cor_MIC_mat[index1, index2], 3))))
 }
 ```
 
-## Visualization of high pearson (> 0.8) and low MIC (< 0.25)
+## Visualization of high pearson (> 0.75) and low MIC (< 0.25)
 
 ```{r}
-par(mfrow = c(1,3))
+par(mfrow = c(3,3))
 
 for (i in 1:nrow(cor_contrast_ind8)){
    index1 <- cor_contrast_ind8[i, 1]; index2 <- cor_contrast_ind8[i, 2]
    plot(sub_dat[,index1], sub_dat[,index2], col = sub_cluster_labels, asp = T,
-      pch = 16, xlab = paste0(colnames(sub_dat)[index1], ", (", idx1, ")"),
-      ylab = paste0(colnames(sub_dat)[index2], ", (", idx2, ")"), 
+      pch = 16, xlab = paste0(colnames(sub_dat)[index1], ", (", index1, ")"),
+      ylab = paste0(colnames(sub_dat)[index2], ", (", index2, ")"), 
       main = paste(paste0("Pearson of ", round(cor_pearson_mat[index1, index2], 3)),
                    "\n",
                    paste0("MIC of ", round(cor_MIC_mat[index1, index2], 3))))
+}
+```
+
+## Visualization of low pearson (< 0.45) and high XI (> 0.55)
+
+```{r}
+par(mfrow = c(2, 2))
+
+for (i in 1:nrow(cor_contrast_ind9)){
+   index1 <- cor_contrast_ind9[i, 1]; index2 <- cor_contrast_ind9[i, 2]
+   plot(sub_dat[,index1], sub_dat[,index2], col = sub_cluster_labels, asp = T,
+      pch = 16, xlab = paste0(colnames(sub_dat)[index1], ", (", index1, ")"),
+      ylab = paste0(colnames(sub_dat)[index2], ", (", index2, ")"), 
+      main = paste(paste0("Pearson of ", round(cor_pearson_mat[index1, index2], 3)),
+                   "\n",
+                   paste0("XI of ", round(XI_cor_mat[index1, index2], 3))))
+}
+```
+
+## Visualization of high pearson (> 0.85) and low XI (< 0.10)
+
+```{r}
+par(mfrow = c(2,4))
+
+for (i in 1:nrow(cor_contrast_ind10)){
+   index1 <- cor_contrast_ind10[i, 1]; index2 <- cor_contrast_ind10[i, 2]
+   plot(sub_dat[,index1], sub_dat[,index2], col = sub_cluster_labels, asp = T,
+      pch = 16, xlab = paste0(colnames(sub_dat)[index1], ", (", index1, ")"),
+      ylab = paste0(colnames(sub_dat)[index2], ", (", index2, ")"), 
+      main = paste(paste0("Pearson of ", round(cor_pearson_mat[index1, index2], 3)),
+                   "\n",
+                   paste0("XI of ", round(XI_cor_mat[index1, index2], 3))))
 }
 ```
