@@ -34,15 +34,56 @@ load("meaningful_indices.RData")
 for (i in 1:length(cell_labels)){
   label <- cell_labels[i]
   extracted <- dat[which(cell_type$level1class == label), indices]
-  subset_data[[i]] <- extracted
+  hclustered <- hclust(dist(t(extracted)))$order
+  reordered <- extracted[, hclustered]
+  subset_data[[i]] <- reordered
 }
 
+col <- ncol(subset_data[[1]])
+cell_num <- length(cell_labels)
+```
+
+## Function to draw a heatmap
+
+```{r}
+library(ggplot2)
+
+store_heatmap <- function(heatmap_matrix, method, celltype, abs = F){
+  if (abs){
+    heatmap_title <- paste0("Abs_Heatmap of ", method,
+                            " Correlation\n(", celltype, ")")  
+  }
+  else{
+    heatmap_title <- paste0("Heatmap of ", method,
+                            " Correlation\n(", celltype, ")")
+  }
+  
+  heatmap <- ggplot(data = heatmap_matrix, 
+                    aes(x = Var2, y = Var1, fill = value)) + 
+    geom_tile() +
+    scale_fill_viridis_b(option = "D", direction = -1,
+                         breaks = round(as.numeric(
+      quantile(heatmap_matrix[,3],
+               probs = seq(0, 1,length.out = 6))), 1)) +
+    theme(axis.text.x = element_blank(),
+          axis.text.y = element_blank(),
+          axis.ticks.x = element_blank(),
+          axis.ticks.y = element_blank(),
+          axis.title.x = element_blank(),
+          axis.title.y = element_blank(),
+          panel.background = element_rect(fill = "transparent")) +
+    labs(title = heatmap_title)
+  return (heatmap)
+  }
 ```
 
 ## 1. Pearson Correlation
 
 ```{r}
+library(reshape2)
+
 pearson_median <- c()
+pearson_array <- array(NA, dim = c(col, col, cell_num))
 
 pearson_max <- c()
 pearson_max_pair1 <- c()
@@ -52,12 +93,16 @@ pearson_min <- c()
 pearson_min_pair1 <- c()
 pearson_min_pair2 <- c()
 
+pearson_heatmap <- list()
+
 for (i in 1:length(cell_labels)){
   subset_pearson <- cor(subset_data[[i]], method = "pearson")
   
   pearson_median <- c(pearson_median, median(subset_pearson))
   
   subset_pearson[upper.tri(subset_pearson, diag = T)] <- NA
+  pearson_array[, , i] <- subset_pearson
+  
   pearson_vec <- sort(abs(subset_pearson), decreasing = T)
   
   max_idx <- which(abs(subset_pearson) == pearson_vec[1], arr.ind = T)
@@ -75,8 +120,17 @@ for (i in 1:length(cell_labels)){
   pearson_min_pair2 <- c(pearson_min_pair2, idx2)
   
   pearson_min <- c(pearson_min, subset_pearson[idx1, idx2])
+  
+  # Store a heatmap
+  melted_matrix <- melt(subset_pearson, na.rm = T)
+  
+  # ggplot to draw a heatmap with the viridis palette
+  pearson_heatmap[[i]] <- store_heatmap(melted_matrix, "Pearson",
+                                        cell_labels[i])
 }
 ```
+
+### The pairs with highest pearson coefficient by cell type. (Close to perfect linear relationship)
 
 ```{r}
 par(mfrow = c(2,4))
@@ -86,9 +140,12 @@ for (i in 1:length(cell_labels)){
   plot(sub_dat[,idx1], sub_dat[,idx2], asp = T,
       pch = 16, xlab = paste0(colnames(sub_dat)[idx1], ", (", idx1, ")"),
       ylab = paste0(colnames(sub_dat)[idx2], ", (", idx2, ")"), 
-      main = paste0("Correlation of ", round(pearson_max[i], 3)))
+      main = paste0("Correlation of ", round(pearson_max[i], 3),
+                    "\nCell_type: ", cell_labels[i]))
 }
 ```
+
+### The pairs with lowest pearson coefficient by cell type. (Close to imperfect linear dependence)
 
 ```{r}
 par(mfrow = c(2,4))
@@ -98,14 +155,23 @@ for (i in 1:length(cell_labels)){
   plot(sub_dat[,idx1], sub_dat[,idx2], asp = T,
       pch = 16, xlab = paste0(colnames(sub_dat)[idx1], ", (", idx1, ")"),
       ylab = paste0(colnames(sub_dat)[idx2], ", (", idx2, ")"), 
-      main = paste0("Correlation of ", round(pearson_min[i], 3)))
+      main = paste0("Correlation of ", round(pearson_min[i], 3),
+                    "\nCell_type: ", cell_labels[i]))
 }
 ```
 
-## 2. Spearman Correlation
+### Heatmap of Pearson coefficient by cell type
+
+```{r}
+library(gridExtra)
+marrangeGrob(pearson_heatmap, nrow = 3, ncol = 3)
+```
+
+## 2. Spearman Correlation (Spearman's rho)
 
 ```{r}
 spearman_median <- c()
+spearman_array <- array(NA, dim = c(col, col, cell_num))
 
 spearman_max <- c()
 spearman_max_pair1 <- c()
@@ -115,12 +181,16 @@ spearman_min <- c()
 spearman_min_pair1 <- c()
 spearman_min_pair2 <- c()
 
+spearman_heatmap <- list()
+
 for (i in 1:length(cell_labels)){
   subset_spearman <- cor(subset_data[[i]], method = "spearman")
   
   spearman_median <- c(spearman_median, median(subset_spearman))
   
   subset_spearman[upper.tri(subset_spearman, diag = T)] <- NA
+  spearman_array[ , , i] <- subset_spearman
+  
   spearman_vec <- sort(abs(subset_spearman), decreasing = T)
   
   max_idx <- which(abs(subset_spearman) == spearman_vec[1], arr.ind = T)
@@ -138,8 +208,17 @@ for (i in 1:length(cell_labels)){
   spearman_min_pair2 <- c(spearman_min_pair2, idx2)
   
   spearman_min <- c(spearman_min, subset_spearman[idx1, idx2])
+  
+  # Store a heatmap
+  melted_matrix <- melt(subset_spearman, na.rm = T)
+  
+  # ggplot to draw a heatmap with the viridis palette
+  spearman_heatmap[[i]] <- store_heatmap(melted_matrix, "Spearman",
+                                        cell_labels[i])
 }
 ```
+
+### The pairs with highest spearman's rho by cell type. (Close to perfect monotonically dependence)
 
 ```{r}
 par(mfrow = c(2,4))
@@ -149,9 +228,12 @@ for (i in 1:length(cell_labels)){
   plot(sub_dat[,idx1], sub_dat[,idx2], asp = T,
       pch = 16, xlab = paste0(colnames(sub_dat)[idx1], ", (", idx1, ")"),
       ylab = paste0(colnames(sub_dat)[idx2], ", (", idx2, ")"), 
-      main = paste0("Correlation of ", round(spearman_max[i], 3)))
+      main = paste0("Correlation of ", round(spearman_max[i], 3),
+                    "\nCell_type: ", cell_labels[i]))
 }
 ```
+
+### The pairs with lowest spearman's rho by cell type. (Close to imperfect monotonically dependence)
 
 ```{r}
 par(mfrow = c(2,4))
@@ -161,15 +243,24 @@ for (i in 1:length(cell_labels)){
   plot(sub_dat[,idx1], sub_dat[,idx2], asp = T,
       pch = 16, xlab = paste0(colnames(sub_dat)[idx1], ", (", idx1, ")"),
       ylab = paste0(colnames(sub_dat)[idx2], ", (", idx2, ")"), 
-      main = paste0("Correlation of ", round(spearman_min[i], 3)))
+      main = paste0("Correlation of ", round(spearman_min[i], 3),
+                    "\nCell_type: ", cell_labels[i]))
 }
 ```
+
+### Heatmap of Spearman's rho by cell type
+
+```{r}
+marrangeGrob(spearman_heatmap, nrow = 3, ncol = 3)
+```
+
 ## 3. Kendall's tau
 
 ```{r, warning=FALSE}
 library(pcaPP)
 
 kendall_median <- c()
+kendall_array <- array(NA, dim = c(col, col, cell_num))
 
 kendall_max <- c()
 kendall_max_pair1 <- c()
@@ -179,12 +270,16 @@ kendall_min <- c()
 kendall_min_pair1 <- c()
 kendall_min_pair2 <- c()
 
+kendall_heatmap <- list()
+
 for (i in 1:length(cell_labels)){
   subset_kendall <- cor.fk(subset_data[[i]])
   
   kendall_median <- c(kendall_median, median(subset_kendall))
   
   subset_kendall[upper.tri(subset_kendall, diag = T)] <- NA
+  kendall_array[, , i] <- subset_kendall
+  
   kendall_vec <- sort(abs(subset_kendall), decreasing = T)
   
   max_idx <- which(abs(subset_kendall) == kendall_vec[i], arr.ind = T)
@@ -202,8 +297,17 @@ for (i in 1:length(cell_labels)){
   kendall_min_pair2 <- c(kendall_min_pair2, idx2)
   
   kendall_min <- c(kendall_min, subset_kendall[idx1, idx2])
+  
+  # Store a heatmap
+  melted_matrix <- melt(subset_kendall, na.rm = T)
+  
+  # ggplot to draw a heatmap with the viridis palette
+  kendall_heatmap[[i]] <- store_heatmap(melted_matrix, "Kendall",
+                                        cell_labels[i])
 }
 ```
+
+### The pairs with highest kendall's tau by cell type. (Close to perfect monotonically dependence)
 
 ```{r}
 par(mfrow = c(2,4))
@@ -213,9 +317,12 @@ for (i in 1:length(cell_labels)){
   plot(sub_dat[,idx1], sub_dat[,idx2], asp = T,
       pch = 16, xlab = paste0(colnames(sub_dat)[idx1], ", (", idx1, ")"),
       ylab = paste0(colnames(sub_dat)[idx2], ", (", idx2, ")"), 
-      main = paste0("Correlation of ", round(kendall_max[i], 3)))
+      main = paste0("Correlation of ", round(kendall_max[i], 3),
+                    "\nCell_type: ", cell_labels[i]))
 }
 ```
+
+### The pairs with lowest kendall's tau by cell type. (Close to imperfect monotonically dependence)
 
 ```{r}
 par(mfrow = c(2,4))
@@ -225,8 +332,15 @@ for (i in 1:length(cell_labels)){
   plot(sub_dat[,idx1], sub_dat[,idx2], asp = T,
       pch = 16, xlab = paste0(colnames(sub_dat)[idx1], ", (", idx1, ")"),
       ylab = paste0(colnames(sub_dat)[idx2], ", (", idx2, ")"), 
-      main = paste0("Correlation of ", round(kendall_min[i], 3)))
+      main = paste0("Correlation of ", round(kendall_min[i], 3),
+                    "\nCell_type: ", cell_labels[i]))
 }
+```
+
+### Heatmap of Kendall's tau by cell type
+
+```{r}
+marrangeGrob(kendall_heatmap, nrow = 3, ncol = 3)
 ```
 
 ## 4. Distance Correlation
@@ -235,6 +349,7 @@ for (i in 1:length(cell_labels)){
 library(energy)
 
 dist_median <- c()
+dist_array <- array(NA, dim = c(col, col, cell_num))
 
 dist_max <- c()
 dist_max_pair1 <- c()
@@ -244,20 +359,23 @@ dist_min <- c()
 dist_min_pair1 <- c()
 dist_min_pair2 <- c()
 
+dist_heatmap <- list()
+
 for (i in 1:length(cell_labels)){
   sub_dat <- subset_data[[i]]
   subset_dist <- matrix(nrow = ncol(sub_dat),
                          ncol = ncol(sub_dat))
 
-  for (i in 2:ncol(sub_dat)){
-    for (j in 1:(i-1)){
-      subset_dist[i,j] <- dcor(as.numeric(sub_dat[, i]),
-                                as.numeric(sub_dat[, j]))
+  for (j in 2:ncol(sub_dat)){
+    for (k in 1:(j-1)){
+      subset_dist[j,k] <- dcor(as.numeric(sub_dat[, j]),
+                                as.numeric(sub_dat[, k]))
     }
   }
+  dist_array[ , , i] <- subset_dist
   
   dist_median <- c(dist_median, median(subset_dist, na.rm = T))
-  
+
   dist_vec <- sort(abs(subset_dist), decreasing = T)
   
   max_idx <- which(abs(subset_dist) == dist_vec[1], arr.ind = T)
@@ -275,8 +393,17 @@ for (i in 1:length(cell_labels)){
   dist_min_pair2 <- c(dist_min_pair2, idx2)
   
   dist_min <- c(dist_min, subset_dist[idx1, idx2])
+  
+  # Store a heatmap
+  melted_matrix <- melt(subset_dist, na.rm = T)
+  
+  # ggplot to draw a heatmap with the viridis palette
+  dist_heatmap[[i]] <- store_heatmap(melted_matrix, "Dist.Cor",
+                                        cell_labels[i])
 }
 ```
+
+### The pairs with highest distance correlation by cell type. (Close to perfect linear dependence)
 
 ```{r}
 par(mfrow = c(2,4))
@@ -286,9 +413,12 @@ for (i in 1:length(cell_labels)){
   plot(sub_dat[,idx1], sub_dat[,idx2], asp = T,
       pch = 16, xlab = paste0(colnames(sub_dat)[idx1], ", (", idx1, ")"),
       ylab = paste0(colnames(sub_dat)[idx2], ", (", idx2, ")"), 
-      main = paste0("Correlation of ", round(dist_max[i], 3)))
+      main = paste0("Correlation of ", round(dist_max[i], 3),
+                    "\nCell_type: ", cell_labels[i]))
 }
 ```
+
+### The pairs with lowest distance correlation by cell type. (Close to imperfect linear dependence)
 
 ```{r}
 par(mfrow = c(2,4))
@@ -298,8 +428,15 @@ for (i in 1:length(cell_labels)){
   plot(sub_dat[,idx1], sub_dat[,idx2], asp = T,
       pch = 16, xlab = paste0(colnames(sub_dat)[idx1], ", (", idx1, ")"),
       ylab = paste0(colnames(sub_dat)[idx2], ", (", idx2, ")"), 
-      main = paste0("Correlation of ", round(dist_min[i], 3)))
+      main = paste0("Correlation of ", round(dist_min[i], 3),
+                    "\nCell_type: ", cell_labels[i]))
 }
+```
+
+### Heatmap of distance correlation by cell type
+
+```{r}
+marrangeGrob(dist_heatmap, nrow = 3, ncol = 3)
 ```
 
 ## 5. Hoeffding's D measure
@@ -308,6 +445,7 @@ for (i in 1:length(cell_labels)){
 library(Hmisc)
 
 hoeff_median <- c()
+hoeff_array <- array(NA, dim = c(col, col, cell_num))
 
 hoeff_max <- c()
 hoeff_max_pair1 <- c()
@@ -317,6 +455,8 @@ hoeff_min <- c()
 hoeff_min_pair1 <- c()
 hoeff_min_pair2 <- c()
 
+hoeff_heatmap <- list()
+
 for (i in 1:length(cell_labels)){
   sub_dat <- subset_data[[i]]
   
@@ -325,6 +465,8 @@ for (i in 1:length(cell_labels)){
   hoeff_median <- c(hoeff_median, median(subset_hoeff, na.rm = T))
   
   subset_hoeff[upper.tri(subset_hoeff, diag = T)] <- NA
+  hoeff_array[, , i] <- subset_hoeff
+  
   hoeff_vec <- sort(abs(subset_hoeff), decreasing = T)
   
   max_idx <- which(abs(subset_hoeff) == hoeff_vec[1], arr.ind = T)
@@ -342,8 +484,17 @@ for (i in 1:length(cell_labels)){
   hoeff_min_pair2 <- c(hoeff_min_pair2, idx2)
   
   hoeff_min <- c(hoeff_min, subset_hoeff[idx1, idx2])
+  
+  # Store a heatmap
+  melted_matrix <- melt(subset_hoeff, na.rm = T)
+  
+  # ggplot to draw a heatmap with the viridis palette
+  hoeff_heatmap[[i]] <- store_heatmap(melted_matrix, "Hoeffding's D",
+                                        cell_labels[i])
 }
 ```
+
+### The pairs with highest hoeffiding's D by cell type. (Highly correlated)
 
 ```{r}
 par(mfrow = c(2,4))
@@ -353,9 +504,12 @@ for (i in 1:length(cell_labels)){
   plot(sub_dat[,idx1], sub_dat[,idx2], asp = T,
       pch = 16, xlab = paste0(colnames(sub_dat)[idx1], ", (", idx1, ")"),
       ylab = paste0(colnames(sub_dat)[idx2], ", (", idx2, ")"), 
-      main = paste0("Correlation of ", round(hoeff_max[i], 3)))
+      main = paste0("Correlation of ", round(hoeff_max[i], 3),
+                    "\nCell_type: ", cell_labels[i]))
 }
 ```
+
+### The pairs with lowest hoeffiding's D by cell type. (Seemingly independent)
 
 ```{r}
 par(mfrow = c(2,4))
@@ -365,8 +519,15 @@ for (i in 1:length(cell_labels)){
   plot(sub_dat[,idx1], sub_dat[,idx2], asp = T,
       pch = 16, xlab = paste0(colnames(sub_dat)[idx1], ", (", idx1, ")"),
       ylab = paste0(colnames(sub_dat)[idx2], ", (", idx2, ")"), 
-      main = paste0("Correlation of ", round(hoeff_min[i], 3)))
+      main = paste0("Correlation of ", round(hoeff_min[i], 3),
+                    "\nCell_type: ", cell_labels[i]))
 }
+```
+
+### Heatmap of Hoeffiding's D by cell type
+
+```{r}
+marrangeGrob(hoeff_heatmap, nrow = 3, ncol = 3)
 ```
 
 ## 6. Mutual information (MI) 
@@ -375,6 +536,7 @@ for (i in 1:length(cell_labels)){
 library(entropy)
 
 MI_median <- c()
+MI_array <- array(NA, dim = c(col, col, cell_num))
 
 MI_max <- c()
 MI_max_pair1 <- c()
@@ -384,20 +546,23 @@ MI_min <- c()
 MI_min_pair1 <- c()
 MI_min_pair2 <- c()
 
+MI_heatmap <- list()
+
 for (i in 1:length(cell_labels)){
   sub_dat <- subset_data[[i]]
   subset_MI <- matrix(nrow = ncol(sub_dat),
                       ncol = ncol(sub_dat))
 
-  for (i in 2:ncol(sub_dat)){
-    for (j in 1:(i-1)){
-    y2d <- discretize2d(as.matrix(sub_dat[, i]),
-                                   as.matrix(sub_dat[, j]),
+  for (j in 2:ncol(sub_dat)){
+    for (k in 1:(j-1)){
+    y2d <- discretize2d(as.matrix(sub_dat[, j]),
+                                   as.matrix(sub_dat[, k]),
                                    numBins1 = 20,
                                    numBins2 = 20)
-    subset_MI[i,j] <- as.numeric(mi.empirical(y2d))
+    subset_MI[j,k] <- as.numeric(mi.empirical(y2d))
     }
   }
+  MI_array[, , i] <- subset_MI
   
   MI_median <- c(MI_median, median(subset_MI, na.rm = T))
   
@@ -418,8 +583,17 @@ for (i in 1:length(cell_labels)){
   MI_min_pair2 <- c(MI_min_pair2, idx2)
   
   MI_min <- c(MI_min, subset_MI[idx1, idx2])
+  
+  # Store a heatmap
+  melted_matrix <- melt(subset_MI, na.rm = T)
+  
+  # ggplot to draw a heatmap with the viridis palette
+  MI_heatmap[[i]] <- store_heatmap(melted_matrix, "MI",
+                                        cell_labels[i])
 }
 ```
+
+### The pairs with highest MI by cell type. (Highly correlated)
 
 ```{r}
 par(mfrow = c(2,4))
@@ -429,9 +603,12 @@ for (i in 1:length(cell_labels)){
   plot(sub_dat[,idx1], sub_dat[,idx2], asp = T,
       pch = 16, xlab = paste0(colnames(sub_dat)[idx1], ", (", idx1, ")"),
       ylab = paste0(colnames(sub_dat)[idx2], ", (", idx2, ")"), 
-      main = paste0("Correlation of ", round(MI_max[i], 3)))
+      main = paste0("Correlation of ", round(MI_max[i], 3),
+                    "\nCell_type: ", cell_labels[i]))
 }
 ```
+
+### The pairs with lowest MI by cell type. (Seemingly independent)
 
 ```{r}
 par(mfrow = c(2,4))
@@ -441,8 +618,15 @@ for (i in 1:length(cell_labels)){
   plot(sub_dat[,idx1], sub_dat[,idx2], asp = T,
       pch = 16, xlab = paste0(colnames(sub_dat)[idx1], ", (", idx1, ")"),
       ylab = paste0(colnames(sub_dat)[idx2], ", (", idx2, ")"), 
-      main = paste0("Correlation of ", round(MI_min[i], 3)))
+      main = paste0("Correlation of ", round(MI_min[i], 3),
+                    "\nCell_type: ", cell_labels[i]))
 }
+```
+
+### Heatmap of MI by cell type
+
+```{r}
+marrangeGrob(MI_heatmap, nrow = 3, ncol = 3)
 ```
 
 ## 7. Maximum Information Coefficient (MIC)
@@ -451,6 +635,7 @@ for (i in 1:length(cell_labels)){
 library(minerva)
 
 MIC_median <- c()
+MIC_array <- array(NA, dim = c(col, col, cell_num))
 
 MIC_max <- c()
 MIC_max_pair1 <- c()
@@ -459,6 +644,8 @@ MIC_max_pair2 <- c()
 MIC_min <- c()
 MIC_min_pair1 <- c()
 MIC_min_pair2 <- c()
+
+MIC_heatmap <- c()
 
 for (i in 1:length(cell_labels)){
   sub_dat <- subset_data[[i]]
@@ -469,6 +656,8 @@ for (i in 1:length(cell_labels)){
   MIC_median <- c(MIC_median, median(subset_MIC, na.rm = T))
   
   subset_MIC[upper.tri(subset_MIC, diag = T)] <- NA
+  MIC_array[, , i] <- subset_MIC
+  
   MIC_vec <- sort(abs(subset_MIC), decreasing = T)
   
   max_idx <- which(abs(subset_MIC) == MIC_vec[1], arr.ind = T)
@@ -486,8 +675,17 @@ for (i in 1:length(cell_labels)){
   MIC_min_pair2 <- c(MIC_min_pair2, idx2)
   
   MIC_min <- c(MIC_min, subset_MIC[idx1, idx2])
+  
+  # Store a heatmap
+  melted_matrix <- melt(subset_MIC, na.rm = T)
+  
+  # ggplot to draw a heatmap with the viridis palette
+  MIC_heatmap[[i]] <- store_heatmap(melted_matrix, "MIC",
+                                        cell_labels[i])
 }
 ```
+
+### The pairs with highest MIC by cell type. (Highly correlated)
 
 ```{r}
 par(mfrow = c(2,4))
@@ -497,9 +695,12 @@ for (i in 1:length(cell_labels)){
   plot(sub_dat[,idx1], sub_dat[,idx2], asp = T,
       pch = 16, xlab = paste0(colnames(sub_dat)[idx1], ", (", idx1, ")"),
       ylab = paste0(colnames(sub_dat)[idx2], ", (", idx2, ")"), 
-      main = paste0("Correlation of ", round(MIC_max[i], 3)))
+      main = paste0("Correlation of ", round(MIC_max[i], 3),
+                    "\nCell_type: ", cell_labels[i]))
 }
 ```
+
+### The pairs with lowest MIC by cell type. (Seemingly independent)
 
 ```{r}
 par(mfrow = c(2,4))
@@ -509,8 +710,15 @@ for (i in 1:length(cell_labels)){
   plot(sub_dat[,idx1], sub_dat[,idx2], asp = T,
       pch = 16, xlab = paste0(colnames(sub_dat)[idx1], ", (", idx1, ")"),
       ylab = paste0(colnames(sub_dat)[idx2], ", (", idx2, ")"), 
-      main = paste0("Correlation of ", round(MIC_min[i], 3)))
+      main = paste0("Correlation of ", round(MIC_min[i], 3),
+                    "\nCell_type: ", cell_labels[i]))
 }
+```
+
+### Heatmap of MIC by cell type
+
+```{r}
+marrangeGrob(MIC_heatmap, nrow = 3, ncol = 3)
 ```
 
 ## 8. Chatterjee's method (XI)
@@ -519,6 +727,7 @@ for (i in 1:length(cell_labels)){
 library(XICOR)
 
 XI_median <- c()
+XI_array <- array(NA, dim = c(col, col, cell_num))
 
 XI_max <- c()
 XI_max_pair1 <- c()
@@ -528,17 +737,20 @@ XI_min <- c()
 XI_min_pair1 <- c()
 XI_min_pair2 <- c()
 
+XI_heatmap <- list()
+
 for (i in 1:length(cell_labels)){
   sub_dat <- subset_data[[i]]
   subset_XI <- matrix(nrow = ncol(sub_dat),
                       ncol = ncol(sub_dat))
 
-  for (i in 2:ncol(sub_dat)){
-    for (j in 1:(i-1)){
-      subset_XI[i,j] <- calculateXI(as.numeric(sub_dat[, i]),
-                                    as.numeric(sub_dat[, j]))
+  for (j in 2:ncol(sub_dat)){
+    for (k in 1:(j-1)){
+      subset_XI[j,k] <- calculateXI(as.numeric(sub_dat[, j]),
+                                    as.numeric(sub_dat[, k]))
     }
   }
+  XI_array[, , i] <- subset_XI
   
   XI_median <- c(XI_median, median(subset_XI, na.rm = T))
   
@@ -559,8 +771,17 @@ for (i in 1:length(cell_labels)){
   XI_min_pair2 <- c(XI_min_pair2, idx2)
   
   XI_min <- c(XI_min, subset_XI[idx1, idx2])
+  
+  # Store a heatmap
+  melted_matrix <- melt(subset_XI, na.rm = T)
+  
+  # ggplot to draw a heatmap with the viridis palette
+  XI_heatmap[[i]] <- store_heatmap(melted_matrix, "XI",
+                                        cell_labels[i])
 }
 ```
+
+### The pairs with highest XI by cell type. (Highly correlated)
 
 ```{r}
 par(mfrow = c(2,4))
@@ -570,9 +791,12 @@ for (i in 1:length(cell_labels)){
   plot(sub_dat[,idx1], sub_dat[,idx2], asp = T,
       pch = 16, xlab = paste0(colnames(sub_dat)[idx1], ", (", idx1, ")"),
       ylab = paste0(colnames(sub_dat)[idx2], ", (", idx2, ")"), 
-      main = paste0("Correlation of ", round(XI_max[i], 3)))
+      main = paste0("Correlation of ", round(XI_max[i], 3),
+                    "\nCell_type: ", cell_labels[i]))
 }
 ```
+
+### The pairs with lowest XI by cell type. (Seemingly independent)
 
 ```{r}
 par(mfrow = c(2,4))
@@ -582,8 +806,15 @@ for (i in 1:length(cell_labels)){
   plot(sub_dat[,idx1], sub_dat[,idx2], asp = T,
       pch = 16, xlab = paste0(colnames(sub_dat)[idx1], ", (", idx1, ")"),
       ylab = paste0(colnames(sub_dat)[idx2], ", (", idx2, ")"), 
-      main = paste0("Correlation of ", round(XI_min[i], 3)))
+      main = paste0("Correlation of ", round(XI_min[i], 3),
+                    "\nCell_type: ", cell_labels[i]))
 }
+```
+
+### Heatmap of XI by cell type
+
+```{r}
+marrangeGrob(XI_heatmap, nrow = 3, ncol = 3)
 ```
 
 ## Median of correlation values by cell type and different measures.

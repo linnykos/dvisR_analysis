@@ -315,10 +315,6 @@ for(i in 1:4){
 knitr::include_graphics("heatmaps/Heatmap_DistCorr.jpeg")
 ```
 
-```{r, echo=FALSE, fig.cap="Abs_DistanceCorr_Heatmap"}
-knitr::include_graphics("heatmaps/Abs_Heatmap_DistCorr.jpeg")
-```
-
 ## 5. Hoeffding’s D measure
 
 - tests the independence of the data sets by calculating the distance between the product of the marginal distributions
@@ -434,10 +430,6 @@ for(i in 1:4){
 knitr::include_graphics("heatmaps/Heatmap_MICorr.jpeg")
 ```
 
-```{r, echo=FALSE, fig.cap="Abs_MutualInfo_Heatmap"}
-knitr::include_graphics("heatmaps/Abs_Heatmap_MICorr.jpeg")
-```
-
 ## 7. Maximum Information Coefficient (MIC)
 
 ```{r, cache=TRUE, warning=FALSE}
@@ -484,10 +476,6 @@ for(i in 1:4){
 
 ```{r, echo=FALSE, fig.cap="MIC_Heatmap"}
 knitr::include_graphics("heatmaps/Heatmap_MICCorr.jpeg")
-```
-
-```{r, echo=FALSE, fig.cap="Abs_MIC_Heatmap"}
-knitr::include_graphics("heatmaps/Abs_Heatmap_MICCorr.jpeg")
 ```
 
 ## 8. Chatterjee's method
@@ -540,10 +528,6 @@ for(i in 1:4){
 
 ```{r, echo=FALSE, fig.cap="XI_Heatmap"}
 knitr::include_graphics("heatmaps/Heatmap_XICorr.jpeg")
-```
-
-```{r, echo=FALSE, fig.cap="Abs_XI_Heatmap"}
-knitr::include_graphics("heatmaps/Abs_Heatmap_XICorr.jpeg")
 ```
 
 # Find the indices that have the contrast measure of dependency.
@@ -917,5 +901,5 @@ indices <- unique(indices)
 #     cor_MI_mat,
 #     cor_MIC_mat,
 #     cor_XI_mat,
-#     file = "Correlation_Matrices.RData")
+#     file = "Correlation_data.RData")
 ```
