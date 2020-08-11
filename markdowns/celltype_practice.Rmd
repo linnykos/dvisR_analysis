@@ -29,14 +29,19 @@ cluster_labels <- as.numeric(as.factor(cell_type$level1class))
 ```{r}
 cell_labels <- unique(cell_type$level1class)
 subset_data <- list()
+subset_heatmap <- list()
 load("meaningful_indices.RData")
+
+sub_full <- dat[, indices]
 
 for (i in 1:length(cell_labels)){
   label <- cell_labels[i]
   extracted <- dat[which(cell_type$level1class == label), indices]
+  subset_data[[i]] <- extracted
+  
   hclustered <- hclust(dist(t(extracted)))$order
   reordered <- extracted[, hclustered]
-  subset_data[[i]] <- reordered
+  subset_heatmap[[i]] <- reordered
 }
 
 col <- ncol(subset_data[[1]])
@@ -48,6 +53,7 @@ cell_num <- length(cell_labels)
 ```{r}
 library(ggplot2)
 
+# Store a heatmap
 store_heatmap <- function(heatmap_matrix, method, celltype, abs = F){
   if (abs){
     heatmap_title <- paste0("Abs_Heatmap of ", method,
@@ -97,7 +103,7 @@ pearson_heatmap <- list()
 
 for (i in 1:length(cell_labels)){
   subset_pearson <- cor(subset_data[[i]], method = "pearson")
-  
+
   pearson_median <- c(pearson_median, median(subset_pearson))
   
   subset_pearson[upper.tri(subset_pearson, diag = T)] <- NA
@@ -121,9 +127,10 @@ for (i in 1:length(cell_labels)){
   
   pearson_min <- c(pearson_min, subset_pearson[idx1, idx2])
   
-  # Store a heatmap
-  melted_matrix <- melt(subset_pearson, na.rm = T)
+  subset_pearson_heatmap <- cor(subset_heatmap[[i]], method = "pearson")
+  subset_pearson_heatmap[upper.tri(subset_pearson_heatmap, diag = T)] <- NA
   
+  melted_matrix <- melt(subset_pearson_heatmap, na.rm = T)
   # ggplot to draw a heatmap with the viridis palette
   pearson_heatmap[[i]] <- store_heatmap(melted_matrix, "Pearson",
                                         cell_labels[i])
@@ -157,6 +164,38 @@ for (i in 1:length(cell_labels)){
       ylab = paste0(colnames(sub_dat)[idx2], ", (", idx2, ")"), 
       main = paste0("Correlation of ", round(pearson_min[i], 3),
                     "\nCell_type: ", cell_labels[i]))
+}
+```
+
+### Pearson correlation of the gene pair which has the the biggest difference by cell type
+
+```{r}
+diff_pearson <- apply(pearson_array, MARGIN = c(1,2),
+                      FUN = function(x) {diff(range(x))})
+
+diff_pearson_ind <- which(diff_pearson == max(diff_pearson, na.rm = T),
+                         arr.ind = T)
+
+diff_idx1 <- diff_pearson_ind[1]; diff_idx2 <- diff_pearson_ind[2]
+
+par(mfrow = c(2,4))
+plot(sub_full[, diff_idx1], sub_full[, diff_idx2], asp = T, pch = 16,
+     col = cluster_labels,
+     xlab = paste0(colnames(sub_dat)[diff_idx1], ", (", diff_idx1, ")"),
+     ylab = paste0(colnames(sub_dat)[diff_idx2], ", (", diff_idx2, ")"),  
+     main = paste0("Correlation of ",
+                   round(cor(sub_full[, diff_idx1],
+                             sub_full[, diff_idx2],
+                             method = "pearson"), 3)))
+for (i in 1:length(cell_labels)){
+  sub_dat <- subset_data[[i]]
+  plot(sub_dat[,diff_idx1], sub_dat[,diff_idx2], asp = T,
+      pch = 16, xlab = paste0(colnames(sub_dat)[diff_idx1], ", (", diff_idx1, ")"),
+      ylab = paste0(colnames(sub_dat)[diff_idx2], ", (", diff_idx2, ")"), 
+      main = paste0("Correlation of ",
+                    round(pearson_array[diff_idx1, diff_idx2, i], 3),
+                    "\nCell_type: ", cell_labels[i]),
+      xlim = c(-1, 2), ylim = c(-1, 3))
 }
 ```
 
@@ -209,8 +248,11 @@ for (i in 1:length(cell_labels)){
   
   spearman_min <- c(spearman_min, subset_spearman[idx1, idx2])
   
+  subset_spearman_heatmap <- cor(subset_heatmap[[i]], method = "spearman")
+  subset_spearman_heatmap[upper.tri(subset_spearman_heatmap, diag = T)] <- NA
+  
   # Store a heatmap
-  melted_matrix <- melt(subset_spearman, na.rm = T)
+  melted_matrix <- melt(subset_spearman_heatmap, na.rm = T)
   
   # ggplot to draw a heatmap with the viridis palette
   spearman_heatmap[[i]] <- store_heatmap(melted_matrix, "Spearman",
@@ -245,6 +287,38 @@ for (i in 1:length(cell_labels)){
       ylab = paste0(colnames(sub_dat)[idx2], ", (", idx2, ")"), 
       main = paste0("Correlation of ", round(spearman_min[i], 3),
                     "\nCell_type: ", cell_labels[i]))
+}
+```
+
+### Spearman correlation of the gene pair which has the the biggest difference by cell type
+
+```{r}
+diff_spearman <- apply(spearman_array, MARGIN = c(1,2),
+                      FUN = function(x) {diff(range(x))})
+
+diff_spearman_ind <- which(diff_spearman == max(diff_spearman, na.rm = T),
+                         arr.ind = T)
+
+diff_idx1 <- diff_spearman_ind[1]; diff_idx2 <- diff_spearman_ind[2]
+
+par(mfrow = c(2,4))
+plot(sub_full[, diff_idx1], sub_full[, diff_idx2], asp = T, pch = 16,
+     col = cluster_labels,
+     xlab = paste0(colnames(sub_dat)[diff_idx1], ", (", diff_idx1, ")"),
+     ylab = paste0(colnames(sub_dat)[diff_idx2], ", (", diff_idx2, ")"),  
+     main = paste0("Correlation of ",
+                   round(cor(sub_full[, diff_idx1],
+                             sub_full[, diff_idx2],
+                             method = "spearman"), 3)))
+for (i in 1:length(cell_labels)){
+  sub_dat <- subset_data[[i]]
+  plot(sub_dat[,diff_idx1], sub_dat[,diff_idx2], asp = T,
+      pch = 16, xlab = paste0(colnames(sub_dat)[diff_idx1], ", (", diff_idx1, ")"),
+      ylab = paste0(colnames(sub_dat)[diff_idx2], ", (", diff_idx2, ")"), 
+      main = paste0("Correlation of ",
+                    round(spearman_array[diff_idx1, diff_idx2, i], 3),
+                    "\nCell_type: ", cell_labels[i]),
+      xlim = c(-1.5, 3), ylim = c(-1, 3))
 }
 ```
 
@@ -298,8 +372,11 @@ for (i in 1:length(cell_labels)){
   
   kendall_min <- c(kendall_min, subset_kendall[idx1, idx2])
   
+  subset_kendall_heatmap <- cor.fk(subset_heatmap[[i]])
+  subset_kendall_heatmap[upper.tri(subset_kendall_heatmap, diag = T)] <- NA
+  
   # Store a heatmap
-  melted_matrix <- melt(subset_kendall, na.rm = T)
+  melted_matrix <- melt(subset_kendall_heatmap, na.rm = T)
   
   # ggplot to draw a heatmap with the viridis palette
   kendall_heatmap[[i]] <- store_heatmap(melted_matrix, "Kendall",
@@ -337,6 +414,37 @@ for (i in 1:length(cell_labels)){
 }
 ```
 
+### Kendall correlation of the gene pair which has the the biggest difference by cell type
+
+```{r}
+diff_kendall <- apply(kendall_array, MARGIN = c(1,2),
+                      FUN = function(x) {diff(range(x))})
+
+diff_kendall_ind <- which(diff_kendall == max(diff_kendall, na.rm = T),
+                         arr.ind = T)
+
+diff_idx1 <- diff_kendall_ind[1]; diff_idx2 <- diff_kendall_ind[2]
+
+par(mfrow = c(2,4))
+plot(sub_full[, diff_idx1], sub_full[, diff_idx2], asp = T, pch = 16,
+     col = cluster_labels,
+     xlab = paste0(colnames(sub_dat)[diff_idx1], ", (", diff_idx1, ")"),
+     ylab = paste0(colnames(sub_dat)[diff_idx2], ", (", diff_idx2, ")"),  
+     main = paste0("Correlation of ",
+                   round(cor.fk(sub_full[, diff_idx1],
+                             sub_full[, diff_idx2]), 3)))
+for (i in 1:length(cell_labels)){
+  sub_dat <- subset_data[[i]]
+  plot(sub_dat[,diff_idx1], sub_dat[,diff_idx2], asp = T,
+      pch = 16, xlab = paste0(colnames(sub_dat)[diff_idx1], ", (", diff_idx1, ")"),
+      ylab = paste0(colnames(sub_dat)[diff_idx2], ", (", diff_idx2, ")"), 
+      main = paste0("Correlation of ",
+                    round(kendall_array[diff_idx1, diff_idx2, i], 3),
+                    "\nCell_type: ", cell_labels[i]),
+      xlim = c(-1.5, 3), ylim = c(-2, 4))
+}
+```
+
 ### Heatmap of Kendall's tau by cell type
 
 ```{r}
@@ -369,7 +477,7 @@ for (i in 1:length(cell_labels)){
   for (j in 2:ncol(sub_dat)){
     for (k in 1:(j-1)){
       subset_dist[j,k] <- dcor(as.numeric(sub_dat[, j]),
-                                as.numeric(sub_dat[, k]))
+                               as.numeric(sub_dat[, k]))
     }
   }
   dist_array[ , , i] <- subset_dist
@@ -394,8 +502,19 @@ for (i in 1:length(cell_labels)){
   
   dist_min <- c(dist_min, subset_dist[idx1, idx2])
   
+  sub_heat <- subset_heatmap[[i]]
+  subset_dist_heatmap <- matrix(nrow = ncol(sub_heat),
+                                ncol = ncol(sub_heat))
+
+  for (j in 2:ncol(sub_heat)){
+    for (k in 1:(j-1)){
+      subset_dist_heatmap[j,k] <- dcor(as.numeric(sub_heat[, j]),
+                                       as.numeric(sub_heat[, k]))
+    }
+  }
+  
   # Store a heatmap
-  melted_matrix <- melt(subset_dist, na.rm = T)
+  melted_matrix <- melt(subset_dist_heatmap, na.rm = T)
   
   # ggplot to draw a heatmap with the viridis palette
   dist_heatmap[[i]] <- store_heatmap(melted_matrix, "Dist.Cor",
@@ -430,6 +549,39 @@ for (i in 1:length(cell_labels)){
       ylab = paste0(colnames(sub_dat)[idx2], ", (", idx2, ")"), 
       main = paste0("Correlation of ", round(dist_min[i], 3),
                     "\nCell_type: ", cell_labels[i]))
+}
+```
+
+## Pearson correlation of the gene pair which has the the biggest difference by cell type
+
+```{r}
+library(energy)
+
+diff_dist <- apply(dist_array, MARGIN = c(1,2),
+                      FUN = function(x) {diff(range(x))})
+
+diff_dist_ind <- which(diff_dist == max(diff_dist, na.rm = T),
+                         arr.ind = T)
+
+diff_idx1 <- diff_dist_ind[1]; diff_idx2 <- diff_dist_ind[2]
+
+par(mfrow = c(2,4))
+plot(sub_full[, diff_idx1], sub_full[, diff_idx2], asp = T, pch = 16,
+     col = cluster_labels,
+     xlab = paste0(colnames(sub_dat)[diff_idx1], ", (", diff_idx1, ")"),
+     ylab = paste0(colnames(sub_dat)[diff_idx2], ", (", diff_idx2, ")"),  
+     main = paste0("Correlation of ",
+                   round(dcor(as.numeric(sub_full[, diff_idx1]),
+                              as.numeric(sub_full[, diff_idx2])), 3)))
+for (i in 1:length(cell_labels)){
+  sub_dat <- subset_data[[i]]
+  plot(sub_dat[,diff_idx1], sub_dat[,diff_idx2], asp = T,
+      pch = 16, xlab = paste0(colnames(sub_dat)[diff_idx1], ", (", diff_idx1, ")"),
+      ylab = paste0(colnames(sub_dat)[diff_idx2], ", (", diff_idx2, ")"), 
+      main = paste0("Correlation of ",
+                    round(dist_array[diff_idx1, diff_idx2, i], 3),
+                    "\nCell_type: ", cell_labels[i]),
+      xlim = c(-1, 2), ylim = c(-1, 3))
 }
 ```
 
@@ -485,6 +637,9 @@ for (i in 1:length(cell_labels)){
   
   hoeff_min <- c(hoeff_min, subset_hoeff[idx1, idx2])
   
+  subset_hoeff_heatmap <- hoeffd(x = as.matrix(subset_heatmap[[i]]))$D
+  
+  subset_hoeff_heatmap[upper.tri(subset_hoeff_heatmap, diag = T)] <- NA
   # Store a heatmap
   melted_matrix <- melt(subset_hoeff, na.rm = T)
   
@@ -521,6 +676,39 @@ for (i in 1:length(cell_labels)){
       ylab = paste0(colnames(sub_dat)[idx2], ", (", idx2, ")"), 
       main = paste0("Correlation of ", round(hoeff_min[i], 3),
                     "\nCell_type: ", cell_labels[i]))
+}
+```
+
+### Hoeffding's D of the gene pair which has the the biggest difference by cell type
+
+```{r}
+library(Hmisc)
+
+diff_hoeff <- apply(hoeff_array, MARGIN = c(1,2),
+                      FUN = function(x) {diff(range(x))})
+
+diff_hoeff_ind <- which(diff_hoeff == max(diff_hoeff, na.rm = T),
+                         arr.ind = T)
+
+diff_idx1 <- diff_hoeff_ind[1]; diff_idx2 <- diff_hoeff_ind[2]
+
+par(mfrow = c(2,4))
+plot(sub_full[, diff_idx1], sub_full[, diff_idx2], asp = T, pch = 16,
+     col = cluster_labels,
+     xlab = paste0(colnames(sub_dat)[diff_idx1], ", (", diff_idx1, ")"),
+     ylab = paste0(colnames(sub_dat)[diff_idx2], ", (", diff_idx2, ")"),  
+     main = paste0("Correlation of ",
+                   round(hoeffd(sub_full[, diff_idx1],
+                             sub_full[, diff_idx2])$D, 3)))
+for (i in 1:length(cell_labels)){
+  sub_dat <- subset_data[[i]]
+  plot(sub_dat[,diff_idx1], sub_dat[,diff_idx2], asp = T,
+      pch = 16, xlab = paste0(colnames(sub_dat)[diff_idx1], ", (", diff_idx1, ")"),
+      ylab = paste0(colnames(sub_dat)[diff_idx2], ", (", diff_idx2, ")"), 
+      main = paste0("Correlation of ",
+                    round(hoeff_array[diff_idx1, diff_idx2, i], 3),
+                    "\nCell_type: ", cell_labels[i]),
+      xlim = c(-1, 3), ylim = c(-2, 4))
 }
 ```
 
@@ -562,6 +750,7 @@ for (i in 1:length(cell_labels)){
     subset_MI[j,k] <- as.numeric(mi.empirical(y2d))
     }
   }
+  
   MI_array[, , i] <- subset_MI
   
   MI_median <- c(MI_median, median(subset_MI, na.rm = T))
@@ -584,8 +773,22 @@ for (i in 1:length(cell_labels)){
   
   MI_min <- c(MI_min, subset_MI[idx1, idx2])
   
+  sub_heat <- subset_heatmap[[i]]
+  subset_MI_heatmap <- matrix(nrow = ncol(sub_heat),
+                      ncol = ncol(sub_heat))
+
+  for (j in 2:ncol(sub_heat)){
+    for (k in 1:(j-1)){
+    y2d <- discretize2d(as.matrix(sub_heat[, j]),
+                                   as.matrix(sub_heat[, k]),
+                                   numBins1 = 20,
+                                   numBins2 = 20)
+    subset_MI_heatmap[j,k] <- as.numeric(mi.empirical(y2d))
+    }
+  }
+  
   # Store a heatmap
-  melted_matrix <- melt(subset_MI, na.rm = T)
+  melted_matrix <- melt(subset_MI_heatmap, na.rm = T)
   
   # ggplot to draw a heatmap with the viridis palette
   MI_heatmap[[i]] <- store_heatmap(melted_matrix, "MI",
@@ -623,6 +826,42 @@ for (i in 1:length(cell_labels)){
 }
 ```
 
+### Hoeffding's D of the gene pair which has the the biggest difference by cell type
+
+```{r}
+library(entropy)
+
+diff_MI <- apply(MI_array, MARGIN = c(1,2),
+                      FUN = function(x) {diff(range(x))})
+
+diff_MI_ind <- which(diff_MI == max(diff_MI, na.rm = T),
+                         arr.ind = T)
+
+diff_idx1 <- diff_MI_ind[1]; diff_idx2 <- diff_MI_ind[2]
+
+par(mfrow = c(2,4))
+plot(sub_full[, diff_idx1], sub_full[, diff_idx2], asp = T, pch = 16,
+     col = cluster_labels,
+     xlab = paste0(colnames(sub_dat)[diff_idx1], ", (", diff_idx1, ")"),
+     ylab = paste0(colnames(sub_dat)[diff_idx2], ", (", diff_idx2, ")"),  
+     main = paste0("Correlation of ",
+                   round(discretize2d(as.matrix(sub_full[, diff_idx1]),
+                                   as.matrix(sub_full[, diff_idx2]),
+                                   numBins1 = 20,
+                                   numBins2 = 20), 3)))
+
+for (i in 1:length(cell_labels)){
+  sub_dat <- subset_data[[i]]
+  plot(sub_dat[,diff_idx1], sub_dat[,diff_idx2], asp = T,
+      pch = 16, xlab = paste0(colnames(sub_dat)[diff_idx1], ", (", diff_idx1, ")"),
+      ylab = paste0(colnames(sub_dat)[diff_idx2], ", (", diff_idx2, ")"), 
+      main = paste0("Correlation of ",
+                    round(MI_array[diff_idx1, diff_idx2, i], 3),
+                    "\nCell_type: ", cell_labels[i]),
+      xlim = c(-1, 3), ylim = c(-2, 4))
+}
+```
+
 ### Heatmap of MI by cell type
 
 ```{r}
@@ -649,8 +888,6 @@ MIC_heatmap <- c()
 
 for (i in 1:length(cell_labels)){
   sub_dat <- subset_data[[i]]
-  cor_MIC <- mine(sub_dat)
-
   subset_MIC <- mine(sub_dat)$MIC
   
   MIC_median <- c(MIC_median, median(subset_MIC, na.rm = T))
@@ -676,8 +913,10 @@ for (i in 1:length(cell_labels)){
   
   MIC_min <- c(MIC_min, subset_MIC[idx1, idx2])
   
+  subset_MIC_heatmap <- mine(subset_heatmap[[i]])$MIC
+  subset_MIC_heatmap[upper.tri(subset_MIC_heatmap, diag = T)] <- NA
   # Store a heatmap
-  melted_matrix <- melt(subset_MIC, na.rm = T)
+  melted_matrix <- melt(subset_MIC_heatmap, na.rm = T)
   
   # ggplot to draw a heatmap with the viridis palette
   MIC_heatmap[[i]] <- store_heatmap(melted_matrix, "MIC",
@@ -712,6 +951,39 @@ for (i in 1:length(cell_labels)){
       ylab = paste0(colnames(sub_dat)[idx2], ", (", idx2, ")"), 
       main = paste0("Correlation of ", round(MIC_min[i], 3),
                     "\nCell_type: ", cell_labels[i]))
+}
+```
+
+### MIC of the gene pair which has the the biggest difference by cell type
+
+```{r}
+library(minerva)
+
+diff_MIC <- apply(MIC_array, MARGIN = c(1,2),
+                      FUN = function(x) {diff(range(x))})
+
+diff_MIC_ind <- which(diff_MIC == max(diff_MIC, na.rm = T),
+                         arr.ind = T)
+
+diff_idx1 <- diff_MIC_ind[1]; diff_idx2 <- diff_MIC_ind[2]
+
+par(mfrow = c(2,4))
+plot(sub_full[, diff_idx1], sub_full[, diff_idx2], asp = T, pch = 16,
+     col = cluster_labels,
+     xlab = paste0(colnames(sub_dat)[diff_idx1], ", (", diff_idx1, ")"),
+     ylab = paste0(colnames(sub_dat)[diff_idx2], ", (", diff_idx2, ")"),  
+     main = paste0("Correlation of ",
+                   round(mine(sub_full[, diff_idx1],
+                             sub_full[, diff_idx2])$MIC, 3)))
+for (i in 1:length(cell_labels)){
+  sub_dat <- subset_data[[i]]
+  plot(sub_dat[,diff_idx1], sub_dat[,diff_idx2], asp = T,
+      pch = 16, xlab = paste0(colnames(sub_dat)[diff_idx1], ", (", diff_idx1, ")"),
+      ylab = paste0(colnames(sub_dat)[diff_idx2], ", (", diff_idx2, ")"), 
+      main = paste0("Correlation of ",
+                    round(MIC_array[diff_idx1, diff_idx2, i], 3),
+                    "\nCell_type: ", cell_labels[i]),
+      xlim = c(-1, 4), ylim = c(-3, 4))
 }
 ```
 
@@ -750,6 +1022,7 @@ for (i in 1:length(cell_labels)){
                                     as.numeric(sub_dat[, k]))
     }
   }
+  
   XI_array[, , i] <- subset_XI
   
   XI_median <- c(XI_median, median(subset_XI, na.rm = T))
@@ -772,8 +1045,20 @@ for (i in 1:length(cell_labels)){
   
   XI_min <- c(XI_min, subset_XI[idx1, idx2])
   
+  sub_heat <- subset_heatmap[[i]]
+  
+  subset_XI_heatmap <- matrix(nrow = ncol(sub_heat),
+                      ncol = ncol(sub_heat))
+
+  for (j in 2:ncol(sub_heat)){
+    for (k in 1:(j-1)){
+      subset_XI_heatmap[j,k] <- calculateXI(as.numeric(sub_heat[, j]),
+                                    as.numeric(sub_heat[, k]))
+    }
+  }
+  
   # Store a heatmap
-  melted_matrix <- melt(subset_XI, na.rm = T)
+  melted_matrix <- melt(subset_XI_heatmap, na.rm = T)
   
   # ggplot to draw a heatmap with the viridis palette
   XI_heatmap[[i]] <- store_heatmap(melted_matrix, "XI",
@@ -808,6 +1093,39 @@ for (i in 1:length(cell_labels)){
       ylab = paste0(colnames(sub_dat)[idx2], ", (", idx2, ")"), 
       main = paste0("Correlation of ", round(XI_min[i], 3),
                     "\nCell_type: ", cell_labels[i]))
+}
+```
+
+### XI of the gene pair which has the the biggest difference by cell type
+
+```{r}
+library(XICOR)
+
+diff_XI <- apply(XI_array, MARGIN = c(1,2),
+                      FUN = function(x) {diff(range(x))})
+
+diff_XI_ind <- which(diff_XI == max(diff_XI, na.rm = T),
+                         arr.ind = T)
+
+diff_idx1 <- diff_XI_ind[1]; diff_idx2 <- diff_XI_ind[2]
+
+par(mfrow = c(2,4))
+plot(sub_full[, diff_idx1], sub_full[, diff_idx2], asp = T, pch = 16,
+     col = cluster_labels,
+     xlab = paste0(colnames(sub_dat)[diff_idx1], ", (", diff_idx1, ")"),
+     ylab = paste0(colnames(sub_dat)[diff_idx2], ", (", diff_idx2, ")"),  
+     main = paste0("Correlation of ",
+                   round(calculateXI(as.numeric(sub_full[, diff_idx1]),
+                                    as.numeric(sub_full[, diff_idx2])), 3)))
+for (i in 1:length(cell_labels)){
+  sub_dat <- subset_data[[i]]
+  plot(sub_dat[,diff_idx1], sub_dat[,diff_idx2], asp = T,
+      pch = 16, xlab = paste0(colnames(sub_dat)[diff_idx1], ", (", diff_idx1, ")"),
+      ylab = paste0(colnames(sub_dat)[diff_idx2], ", (", diff_idx2, ")"), 
+      main = paste0("Correlation of ",
+                    round(XI_array[diff_idx1, diff_idx2, i], 3),
+                    "\nCell_type: ", cell_labels[i]),
+      xlim = c(-1, 3), ylim = c(-2, 4))
 }
 ```
 
