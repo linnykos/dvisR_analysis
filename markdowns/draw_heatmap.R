@@ -12,16 +12,16 @@ library(reshape2) # Matrix melting tool
 ## Store the matrices in a list and make a vector to label
 matrices <- list(cor_pearson_mat, cor_spearman_mat, faster_kendall_mat,
                 cor_hoeffd_mat, cor_dist_mat, cor_MI_mat,
-                cor_MIC_mat, cor_XI_mat)
+                cor_MIC_mat, cor_XI_mat, cor_HSIC_mat, cor_blomqvist_mat)
 abs_matrices <- list(cor_pearson_mat, cor_spearman_mat, faster_kendall_mat,
                      cor_hoeffd_mat)
 label <- c("Pearson", "Spearman", "Kendall", "Hoeff",
-           "Dist", "MI", "MIC", "XI")
+           "Dist", "MI", "MIC", "XI", "HSIC", "Beta")
 
 # Drawing heatmap Part #
 
 for (i in 1:length(matrices)){
-  cor_mat <- matrice[[i]]
+  cor_mat <- matrices[[i]]
   ## melt the matrix to draw a heatmap.
   melted_matrix <- melt(cor_mat, na.rm = T)
   
@@ -31,7 +31,7 @@ for (i in 1:length(matrices)){
     geom_tile() +
     scale_fill_viridis_b(breaks = round(as.numeric(
       quantile(melted_matrix[,3],
-               probs = seq(0, 1,length.out = 6))), 1),
+               probs = seq(0, 1,length.out = 11))), 3),
       option = "D", direction = -1) +
     theme(axis.text.x = element_blank(),
           axis.text.y = element_blank(),
@@ -63,7 +63,7 @@ for (i in 1:length(abs_matrices)){
     geom_tile() +
     scale_fill_viridis_b(breaks = round(as.numeric(
       quantile(melted_matrix[,3],
-               probs = seq(0, 1,length.out = 6))), 1),
+               probs = seq(0, 1,length.out = 11))), 3),
       option = "D", direction = -1) +
     theme(axis.text.x = element_blank(),
           axis.text.y = element_blank(),
@@ -81,3 +81,4 @@ for (i in 1:length(abs_matrices)){
   print(cor_heatmap)
   dev.off()
 }
+
