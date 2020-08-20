@@ -11,7 +11,7 @@ output:
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-This documnet is a practice analysis on Ziesel dataset
+This document is a practice analysis on Ziesel dataset
 
 # Data Import
 
@@ -27,8 +27,22 @@ cluster_labels <- as.numeric(as.factor(cell_type$level1class))
 ```
 
 ```{r}
-rand_ind <- sample(nrow(dat), 300)
-sub_dat <- dat[rand_ind, ]
+cell_labels <- unique(cell_type$level1class)
+rand_ind <- c()
+
+for (cell in cell_labels){
+  set.seed(10)
+  subcell_ind <- which(cell_type$level1class == cell)
+  sub_rand <- sample(length(subcell_ind),
+                     length(subcell_ind)/10)
+  rand_ind <- c(rand_ind, subcell_ind[sub_rand])
+}
+
+dat_hclust <- hclust(dist(t(dat)))
+dat_index <- dat_hclust$order
+
+
+sub_dat <- dat[rand_ind, dat_index]
 
 sub_celltype <- cell_type[rand_ind, ]
 sub_cluster_labels <- as.numeric(as.factor(sub_celltype$level1class))
@@ -82,6 +96,14 @@ for(i in 1:4){
 }
 ```
 
+```{r, echo=FALSE, fig.cap="Pearson_Heatmap"}
+knitr::include_graphics("heatmaps/Heatmap_PearsonCorr.jpeg")
+```
+
+```{r, echo=FALSE, fig.cap="Abs_Pearson_Heatmap"}
+knitr::include_graphics("heatmaps/Abs_Heatmap_PearsonCorr.jpeg")
+```
+
 ## 2.	Spearman’s correlation coefficient
 
 - captures monotonous relationship within data.
@@ -129,35 +151,88 @@ for(i in 1:4){
 }
 ```
 
+```{r, echo=FALSE, fig.cap="Spearman_Heatmap"}
+knitr::include_graphics("heatmaps/Heatmap_SpearmanCorr.jpeg")
+```
+
+```{r, echo=FALSE, fig.cap="Abs_Pearson_Heatmap"}
+knitr::include_graphics("heatmaps/Abs_Heatmap_SpearmanCorr.jpeg")
+```
+
 ## 3.	Kendall’s correlation coefficient, τ
 
 - alternative method to Spearman’s correlations, identifying monotonic relationships.
 - it takes more time than Pearson and Spearman do, so I decide to apply this method on the subset of dataset of which the size is 300 rows. 
 
 ```{r, cache=TRUE}
-cor_kendall_mat <- stats::cor(sub_dat, method = "kendall")
+#cor_kendall_mat <- stats::cor(sub_dat, method = "kendall")
 
-cor_kendall_mat[upper.tri(cor_kendall_mat, diag = T)] <- NA
-cor_kendall_mat[1:5,1:5]
+#cor_kendall_mat[upper.tri(cor_kendall_mat, diag = T)] <- NA
+#cor_kendall_mat[1:5,1:5]
 ```
 
 ```{r}
 # plot the smallest correlations
-cor_kendall_vec <- sort(abs(cor_kendall_mat), decreasing = T)
-plot(cor_kendall_vec)
+#cor_kendall_vec <- sort(abs(cor_kendall_mat), decreasing = T)
+#plot(cor_kendall_vec)
+```
+
+```{r}
+#plot the high correlations
+#par(mfrow = c(2,2))
+#for(i in 1:4){
+# idx <- which(abs(cor_kendall_mat) == cor_kendall_vec, arr.ind = T)
+# idx1 <- idx[i,1]; idx2 <- idx[i,2]
+ 
+# plot(sub_dat[,idx1], sub_dat[,idx2], col = sub_cluster_labels, asp = T,
+#      pch = 16, xlab = paste0(colnames(sub_dat)[idx1], ", (", idx1, ")"),
+#      ylab = paste0(colnames(sub_dat)[idx2], ", (", idx2, ")"), 
+#      main = paste0("Correlation of ", round(cor_kendall_mat[idx1, idx2], 3)))
+#}
+```
+
+```{r}
+#plot the lowest correlations
+#par(mfrow = c(2,2))
+#for(i in 1:4){
+# idx <- which(abs(cor_kendall_mat) == rev(cor_kendall_vec), arr.ind = T)
+# idx1 <- idx[i,1]; idx2 <- idx[i,2]
+ 
+# plot(sub_dat[,idx1], sub_dat[,idx2], col = sub_cluster_labels, asp = T,
+#      pch = 16, xlab = paste0(colnames(sub_dat)[idx1], ", (", idx1, ")"),
+#      ylab = paste0(colnames(sub_dat)[idx2], ", (", idx2, ")"), 
+#      main = paste0("Correlation of ", round(cor_kendall_mat[idx1, idx2], 3)))
+#}
+```
+
+## 3-1. Faster Kendall's tau (pcaPP)
+
+```{r}
+library(pcaPP)
+
+faster_kendall_mat <- cor.fk(sub_dat)
+
+faster_kendall_mat[upper.tri(faster_kendall_mat, diag = T)] <- NA
+faster_kendall_mat[1:5,1:5]
+```
+
+```{r}
+# plot the smallest correlations
+faster_kendall_vec <- sort(abs(faster_kendall_mat), decreasing = T)
+plot(faster_kendall_vec)
 ```
 
 ```{r}
 #plot the high correlations
 par(mfrow = c(2,2))
 for(i in 1:4){
- idx <- which(abs(cor_kendall_mat) == cor_kendall_vec[i], arr.ind = T)
- idx1 <- idx[1]; idx2 <- idx[2]
+ idx <- which(abs(faster_kendall_mat) == faster_kendall_vec, arr.ind = T)
+ idx1 <- idx[i,1]; idx2 <- idx[i,2]
  
  plot(sub_dat[,idx1], sub_dat[,idx2], col = sub_cluster_labels, asp = T,
       pch = 16, xlab = paste0(colnames(sub_dat)[idx1], ", (", idx1, ")"),
       ylab = paste0(colnames(sub_dat)[idx2], ", (", idx2, ")"), 
-      main = paste0("Correlation of ", round(cor_kendall_mat[idx1, idx2], 3)))
+      main = paste0("Correlation of ", round(faster_kendall_mat[idx1, idx2], 3)))
 }
 ```
 
@@ -165,14 +240,22 @@ for(i in 1:4){
 #plot the lowest correlations
 par(mfrow = c(2,2))
 for(i in 1:4){
- idx <- which(abs(cor_kendall_mat) == rev(cor_kendall_vec)[i], arr.ind = T)
- idx1 <- idx[1]; idx2 <- idx[2]
+ idx <- which(abs(faster_kendall_mat) == rev(faster_kendall_vec), arr.ind = T)
+ idx1 <- idx[i,1]; idx2 <- idx[i,2]
  
  plot(sub_dat[,idx1], sub_dat[,idx2], col = sub_cluster_labels, asp = T,
       pch = 16, xlab = paste0(colnames(sub_dat)[idx1], ", (", idx1, ")"),
       ylab = paste0(colnames(sub_dat)[idx2], ", (", idx2, ")"), 
-      main = paste0("Correlation of ", round(cor_kendall_mat[idx1, idx2], 3)))
+      main = paste0("Correlation of ", round(faster_kendall_mat[idx1, idx2], 3)))
 }
+```
+
+```{r, echo=FALSE, fig.cap="Kendall_Heatmap"}
+knitr::include_graphics("heatmaps/Heatmap_KendallCorr.jpeg")
+```
+
+```{r, echo=FALSE, fig.cap="Abs_Kendall_Heatmap"}
+knitr::include_graphics("heatmaps/Abs_Heatmap_KendallCorr.jpeg")
 ```
 
 ## 4.	Distance correlation
@@ -182,38 +265,35 @@ for(i in 1:4){
 ```{r cachedChunk, cache=TRUE}
 library(energy)
 
-dist_cor_mat <- matrix(nrow = ncol(sub_dat), ncol = ncol(sub_dat))
+cor_dist_mat <- matrix(nrow = ncol(sub_dat), ncol = ncol(sub_dat))
 
 for (i in 2:ncol(sub_dat)){
   for (j in 1:(i-1)){
-    dist_cor_mat[i,j] <- dcor(as.numeric(sub_dat[, i]), as.numeric(sub_dat[, j]))
+    cor_dist_mat[i,j] <- dcor2d(as.numeric(sub_dat[, i]), as.numeric(sub_dat[, j]))
   }
 }
 
-```
-
-```{r}
-dist_cor_mat[upper.tri(dist_cor_mat, diag = T)] <- NA
-dist_cor_mat[1:5,1:5]
+cor_dist_mat[upper.tri(cor_dist_mat, diag = T)] <- NA
+cor_dist_mat[1:5,1:5]
 ```
 
 ```{r}
 # plot the smallest correlations
-dist_cor_vec <- sort(abs(dist_cor_mat), decreasing = T)
-plot(dist_cor_vec)
+cor_dist_vec <- sort(abs(cor_dist_mat), decreasing = T)
+plot(cor_dist_vec)
 ```
 
 ```{r}
 #plot the high correlations
 par(mfrow = c(2,2))
 for(i in 1:4){
- idx <- which(abs(dist_cor_mat) == dist_cor_vec[i], arr.ind = T)
+ idx <- which(abs(cor_dist_mat) == cor_dist_vec[i], arr.ind = T)
  idx1 <- idx[1]; idx2 <- idx[2]
  
- plot(dat[,idx1], dat[,idx2], col = sub_cluster_labels, asp = T,
+ plot(sub_dat[,idx1], sub_dat[,idx2], col = sub_cluster_labels, asp = T,
       pch = 16, xlab = paste0(colnames(dat)[idx1], ", (", idx1, ")"),
       ylab = paste0(colnames(dat)[idx2], ", (", idx2, ")"), 
-      main = paste0("Correlation of ", round(dist_cor_mat[idx1, idx2], 3)))
+      main = paste0("Correlation of ", round(cor_dist_mat[idx1, idx2], 3)))
 }
 ```
 
@@ -221,14 +301,18 @@ for(i in 1:4){
 #plot the lowest correlations
 par(mfrow = c(2,2))
 for(i in 1:4){
- idx <- which(abs(dist_cor_mat) == rev(dist_cor_vec)[i], arr.ind = T)
+ idx <- which(abs(cor_dist_mat) == rev(cor_dist_vec)[i], arr.ind = T)
  idx1 <- idx[1]; idx2 <- idx[2]
  
- plot(dat[,idx1], dat[,idx2], col = sub_cluster_labels, asp = T,
+ plot(sub_dat[,idx1], sub_dat[,idx2], col = sub_cluster_labels, asp = T,
       pch = 16, xlab = paste0(colnames(dat)[idx1], ", (", idx1, ")"),
       ylab = paste0(colnames(dat)[idx2], ", (", idx2, ")"), 
-      main = paste0("Correlation of ", round(dist_cor_mat[idx1, idx2], 3)))
+      main = paste0("Correlation of ", round(cor_dist_mat[idx1, idx2], 3)))
 }
+```
+
+```{r, echo=FALSE, fig.cap="DistanceCorr_Heatmap"}
+knitr::include_graphics("heatmaps/Heatmap_DistCorr.jpeg")
 ```
 
 ## 5. Hoeffding’s D measure
@@ -238,16 +322,16 @@ for(i in 1:4){
 ```{r, cache=TRUE}
 library(Hmisc)
 
-hoeffd_cor_mat <- hoeffd(x = as.matrix(sub_dat))
+hoeff_dist <- hoeffd(x = as.matrix(sub_dat))
 
-hoeff_dist <- hoeffd_cor_mat$D
+cor_hoeffd_mat <- hoeff_dist$D
 
-hoeff_dist[upper.tri(hoeff_dist, diag = T)] <- NA
+cor_hoeffd_mat[upper.tri(cor_hoeffd_mat, diag = T)] <- NA
 ```
 
 ```{r}
 # plot the smallest correlations
-cor_hoeff_vec <- sort(abs(hoeff_dist), decreasing = T)
+cor_hoeff_vec <- sort(abs(cor_hoeffd_mat), decreasing = T)
 plot(cor_hoeff_vec)
 ```
 
@@ -255,13 +339,13 @@ plot(cor_hoeff_vec)
 #plot the high correlations
 par(mfrow = c(2,2))
 for(i in 1:4){
- idx <- which(abs(hoeff_dist) == (cor_hoeff_vec)[i], arr.ind = T)
+ idx <- which(abs(cor_hoeffd_mat) == (cor_hoeff_vec)[i], arr.ind = T)
  idx1 <- idx[1]; idx2 <- idx[2]
  
  plot(sub_dat[,idx1], sub_dat[,idx2], col = sub_cluster_labels, asp = T,
       pch = 16, xlab = paste0(colnames(sub_dat)[idx1], ", (", idx1, ")"),
       ylab = paste0(colnames(dat)[idx2], ", (", idx2, ")"), 
-      main = paste0("Correlation of ", round(hoeff_dist[idx1, idx2], 3)))
+      main = paste0("Correlation of ", round(cor_hoeffd_mat[idx1, idx2], 3)))
 }
 ```
 
@@ -269,14 +353,22 @@ for(i in 1:4){
 #plot the lowest correlations
 par(mfrow = c(2,2))
 for(i in 1:4){
- idx <- which(abs(hoeff_dist) == rev(cor_hoeff_vec)[i], arr.ind = T)
+ idx <- which(abs(cor_hoeffd_mat) == rev(cor_hoeff_vec)[i], arr.ind = T)
  idx1 <- idx[1,1]; idx2 <- idx[1,2]
  
  plot(sub_dat[,idx1], sub_dat[,idx2], col = sub_cluster_labels, asp = T,
       pch = 16, xlab = paste0(colnames(sub_dat)[idx1], ", (", idx1, ")"),
       ylab = paste0(colnames(dat)[idx2], ", (", idx2, ")"), 
-      main = paste0("Correlation of ", round(hoeff_dist[idx1, idx2], 3)))
+      main = paste0("Correlation of ", round(cor_hoeffd_mat[idx1, idx2], 3)))
 }
+```
+
+```{r, echo=FALSE, fig.cap="Hoeffding's_Heatmap"}
+knitr::include_graphics("heatmaps/Heatmap_HoeffCorr.jpeg")
+```
+
+```{r, echo=FALSE, fig.cap="Abs_Hoeffding's_Heatmap"}
+knitr::include_graphics("heatmaps/Abs_Heatmap_HoeffCorr.jpeg")
 ```
 
 ## 6.	Mutual information (MI)
@@ -286,15 +378,15 @@ for(i in 1:4){
 ```{r, cache=TRUE, warning=FALSE}
 library(entropy)
 
-mi_cor_mat <- matrix(nrow = ncol(sub_dat), ncol = ncol(sub_dat))
+cor_MI_mat <- matrix(nrow = ncol(sub_dat), ncol = ncol(sub_dat))
 
-for (i in 1:ncol(sub_dat)){
-  for (j in 1:ncol(sub_dat)){
+for (i in 2:ncol(sub_dat)){
+  for (j in 1:(i-1)){
     y2d <- discretize2d(as.matrix(sub_dat[, i]),
                                    as.matrix(sub_dat[, j]),
                                    numBins1 = 20,
                                    numBins2 = 20)
-    mi_cor_mat[i,j] <- as.numeric(mi.empirical(y2d))
+    cor_MI_mat[i,j] <- as.numeric(mi.empirical(y2d))
   }
 }
 
@@ -302,21 +394,21 @@ for (i in 1:ncol(sub_dat)){
 
 ```{r}
 # plot the smallest correlations
-cor_mi_vec <- sort(abs(mi_cor_mat), decreasing = T)
-plot(cor_mi_vec)
+cor_MI_vec <- sort(abs(cor_MI_mat), decreasing = T)
+plot(cor_MI_vec)
 ```
 
 ```{r}
 #plot the high correlations
 par(mfrow = c(2,2))
 for(i in 1:4){
- idx <- which(abs(mi_cor_mat) == (cor_mi_vec)[i], arr.ind = T)
+ idx <- which(abs(cor_MI_mat) == (cor_MI_vec)[i], arr.ind = T)
  idx1 <- idx[1]; idx2 <- idx[1,2]
  
  plot(sub_dat[,idx1], sub_dat[,idx2], col = sub_cluster_labels, asp = T,
       pch = 16, xlab = paste0(colnames(sub_dat)[idx1], ", (", idx1, ")"),
       ylab = paste0(colnames(sub_dat)[idx2], ", (", idx2, ")"), 
-      main = paste0("Correlation of ", round(mi_cor_mat[idx1, idx2], 3)))
+      main = paste0("Correlation of ", round(cor_MI_mat[idx1, idx2], 3)))
 }
 ```
 
@@ -324,28 +416,32 @@ for(i in 1:4){
 #plot the lowest correlations
 par(mfrow = c(2,2))
 for(i in 1:4){
- idx <- which(abs(mi_cor_mat) == rev(cor_mi_vec)[i], arr.ind = T)
+ idx <- which(abs(cor_MI_mat) == rev(cor_MI_vec)[i], arr.ind = T)
  idx1 <- idx[1]; idx2 <- idx[1,2]
  
  plot(sub_dat[,idx1], sub_dat[,idx2], col = sub_cluster_labels, asp = T,
       pch = 16, xlab = paste0(colnames(sub_dat)[idx1], ", (", idx1, ")"),
       ylab = paste0(colnames(dat)[idx2], ", (", idx2, ")"), 
-      main = paste0("Correlation of ", round(mi_cor_mat[idx1, idx2], 3)))
+      main = paste0("Correlation of ", round(cor_MI_mat[idx1, idx2], 3)))
 }
 ```
 
-## MIC
+```{r, echo=FALSE, fig.cap="MutualInfo_Heatmap"}
+knitr::include_graphics("heatmaps/Heatmap_MICorr.jpeg")
+```
+
+## 7. Maximum Information Coefficient (MIC)
 
 ```{r, cache=TRUE, warning=FALSE}
 library(minerva)
 
 cor_MIC <- mine(sub_dat)
 cor_MIC_mat <- cor_MIC$MIC
+
+cor_MIC_mat[upper.tri(cor_MIC_mat, diag = T)] <- NA
 ```
 
 ```{r}
-cor_MIC_mat[upper.tri(cor_MIC_mat, diag = T)] <- NA
-
 cor_MIC_vec <- sort(abs(cor_MIC_mat), decreasing = T)
 plot(cor_MIC_vec)
 ```
@@ -353,11 +449,11 @@ plot(cor_MIC_vec)
 ```{r}
 #plot the high correlations
 par(mfrow = c(2,2))
-idx <- which(abs(cor_MIC_mat) == (cor_MIC_vec)[i], arr.ind = T)
 
 for(i in 1:4){
- idx1 <- idx[i, 1]; idx2 <- idx[i,2]
- plot(sub_dat[,idx1], sub_dat[,idx2], col = sub_cluster_labels, asp = T,
+  idx <- which(abs(cor_MIC_mat) == (cor_MIC_vec)[i], arr.ind = T)
+  idx1 <- idx[i, 1]; idx2 <- idx[i,2]
+  plot(sub_dat[,idx1], sub_dat[,idx2], col = sub_cluster_labels, asp = T,
       pch = 16, xlab = paste0(colnames(sub_dat)[idx1], ", (", idx1, ")"),
       ylab = paste0(colnames(sub_dat)[idx2], ", (", idx2, ")"), 
       main = paste0("Correlation of ", round(cor_MIC_mat[idx1, idx2], 3)))
@@ -378,107 +474,503 @@ for(i in 1:4){
 }
 ```
 
+```{r, echo=FALSE, fig.cap="MIC_Heatmap"}
+knitr::include_graphics("heatmaps/Heatmap_MICCorr.jpeg")
+```
+
+## 8. Chatterjee's method
+
+```{r}
+library(XICOR)
+
+cor_XI_mat <- matrix(nrow = ncol(sub_dat), ncol = ncol(sub_dat))
+
+for (i in 2:ncol(sub_dat)){
+  for (j in 1:(i-1)){
+    cor_XI_mat[i,j] <- calculateXI(as.numeric(sub_dat[, i]), as.numeric(sub_dat[, j]))
+  }
+}
+
+cor_XI_mat[upper.tri(cor_XI_mat, diag = T)] <- NA
+```
+
+```{r}
+cor_XI_vec <- sort(abs(cor_XI_mat), decreasing = T)
+plot(cor_XI_vec)
+```
+
+```{r}
+#plot the high correlations
+par(mfrow = c(2,2))
+for(i in 1:4){
+  idx <- which(abs(cor_XI_mat) == (cor_XI_vec)[i], arr.ind = T)
+  idx1 <- idx[1]; idx2 <- idx[2]
+  plot(sub_dat[,idx1], sub_dat[,idx2], col = sub_cluster_labels, asp = T,
+      pch = 16, xlab = paste0(colnames(sub_dat)[idx1], ", (", idx1, ")"),
+      ylab = paste0(colnames(sub_dat)[idx2], ", (", idx2, ")"), 
+      main = paste0("Correlation of ", round(cor_XI_mat[idx1, idx2], 3)))
+}
+```
+
+```{r}
+#plot the lowest correlations
+par(mfrow = c(2,2))
+
+for(i in 1:4){
+ idx <- which(abs(cor_XI_mat) == rev(cor_XI_vec)[i], arr.ind = T)
+ idx1 <- idx[i, 1]; idx2 <- idx[i, 2]
+ plot(sub_dat[,idx1], sub_dat[,idx2], col = sub_cluster_labels, asp = T,
+      pch = 16, xlab = paste0(colnames(sub_dat)[idx1], ", (", idx1, ")"),
+      ylab = paste0(colnames(dat)[idx2], ", (", idx2, ")"), 
+      main = paste0("Correlation of ", round(cor_XI_mat[idx1, idx2], 3)))
+}
+```
+
+```{r, echo=FALSE, fig.cap="XI_Heatmap"}
+knitr::include_graphics("heatmaps/Heatmap_XICorr.jpeg")
+```
+
+## 9. Hilbert Schmidt Independence Criterion (HSIC)
+
+```{r}
+library(dHSIC)
+
+cor_HSIC_mat <- matrix(nrow = ncol(sub_dat), ncol = ncol(sub_dat))
+
+for (i in 2:ncol(sub_dat)){
+  for (j in 1:(i-1)){
+    cor_HSIC_mat[i,j] <- dhsic(as.numeric(sub_dat[, i]),
+                               as.numeric(sub_dat[, j]))$dHSIC
+  }
+}
+
+cor_HSIC_mat[upper.tri(cor_HSIC_mat, diag = T)] <- NA
+```
+
+```{r}
+cor_HSIC_vec <- sort(abs(cor_HSIC_mat), decreasing = T)
+plot(cor_HSIC_vec)
+```
+
+```{r}
+#plot the high correlations
+par(mfrow = c(2,2))
+for(i in 1:4){
+  idx <- which(abs(cor_HSIC_mat) == (cor_HSIC_vec)[i], arr.ind = T)
+  idx1 <- idx[1]; idx2 <- idx[2]
+  plot(sub_dat[,idx1], sub_dat[,idx2], col = sub_cluster_labels, asp = T,
+      pch = 16, xlab = paste0(colnames(sub_dat)[idx1], ", (", idx1, ")"),
+      ylab = paste0(colnames(sub_dat)[idx2], ", (", idx2, ")"), 
+      main = paste0("Correlation of ", round(cor_HSIC_mat[idx1, idx2], 3)))
+}
+```
+
+```{r}
+#plot the lowest correlations
+par(mfrow = c(2,2))
+
+for(i in 1:4){
+ idx <- which(abs(cor_HSIC_mat) == rev(cor_HSIC_vec)[i], arr.ind = T)
+ idx1 <- idx[1]; idx2 <- idx[2]
+ plot(sub_dat[,idx1], sub_dat[,idx2], col = sub_cluster_labels, asp = T,
+      pch = 16, xlab = paste0(colnames(sub_dat)[idx1], ", (", idx1, ")"),
+      ylab = paste0(colnames(dat)[idx2], ", (", idx2, ")"), 
+      main = paste0("Correlation of ", round(cor_HSIC_mat[idx1, idx2], 3)))
+}
+```
+
+```{r, echo=FALSE, fig.cap="Pearson_Heatmap"}
+knitr::include_graphics("heatmaps/Heatmap_HSICCorr.jpeg")
+```
+
+## 10. Blomqvist's Beta
+
+```{r}
+library(VineCopula)
+
+cor_blomqvist_mat <- BetaMatrix(sub_dat)
+
+cor_blomqvist_mat[upper.tri(cor_blomqvist_mat, diag = T)] <- NA
+cor_blomqvist_mat[1:5,1:5]
+```
+
+```{r}
+cor_blomqvist_vec <- sort(abs(cor_blomqvist_mat), decreasing = T)
+plot(cor_blomqvist_vec)
+```
+
+```{r}
+#plot the high correlations
+par(mfrow = c(2,2))
+for(i in 1:4){
+  idx <- which(abs(cor_blomqvist_mat) == (cor_blomqvist_vec)[i], arr.ind = T)
+  idx1 <- idx[i, 1]; idx2 <- idx[i, 2]
+  plot(sub_dat[,idx1], sub_dat[,idx2], col = sub_cluster_labels, asp = T,
+      pch = 16, xlab = paste0(colnames(sub_dat)[idx1], ", (", idx1, ")"),
+      ylab = paste0(colnames(sub_dat)[idx2], ", (", idx2, ")"), 
+      main = paste0("Correlation of ", round(cor_blomqvist_mat[idx1, idx2], 3)))
+}
+```
+
+```{r}
+#plot the lowest correlations
+par(mfrow = c(2,2))
+
+for(i in 1:4){
+ idx <- which(abs(cor_blomqvist_mat) == rev(cor_blomqvist_vec)[i], arr.ind = T)
+ idx1 <- idx[i, 1]; idx2 <- idx[i, 2]
+ plot(sub_dat[,idx1], sub_dat[,idx2], col = sub_cluster_labels, asp = T,
+      pch = 16, xlab = paste0(colnames(sub_dat)[idx1], ", (", idx1, ")"),
+      ylab = paste0(colnames(dat)[idx2], ", (", idx2, ")"), 
+      main = paste0("Correlation of ", round(cor_blomqvist_mat[idx1, idx2], 3)))
+}
+```
+
+```{r, echo=FALSE, fig.cap="Pearson_Heatmap"}
+knitr::include_graphics("heatmaps/Heatmap_BetaCorr.jpeg")
+```
+
+
 # Find the indices that have the contrast measure of dependency.
 
 ```{r}
-# low pearson and high spearman
+# low pearson and high spearman (linearity vs monotone)
 cor_contrast1 <- (abs(cor_pearson_mat) < 0.3) & (abs(cor_spearman_mat) > 0.7)
 cor_contrast_ind1 <- which(cor_contrast1, arr.ind = T)
+nrow(cor_contrast_ind1)
 
-# high pearson and low spearman
-cor_contrast2 <- (abs(cor_pearson_mat) > 0.8) & (abs(cor_spearman_mat) < 0.2)
+# high pearson and low spearman (linearity vs monotone)
+cor_contrast2 <- (abs(cor_pearson_mat) > 0.80) & (abs(cor_spearman_mat) < 0.20)
 cor_contrast_ind2 <- which(cor_contrast2, arr.ind = T)
 nrow(cor_contrast_ind2)
 
-# low pearson and high kendall
-cor_contrast3 <- (abs(cor_pearson_mat) < 0.2) & (abs(cor_kendall_mat) > 0.8)
+# low pearson and high kendall (linearity vs monotone)
+cor_contrast3 <- (abs(cor_pearson_mat) < 0.45) & (abs(faster_kendall_mat) > 0.55)
 cor_contrast_ind3 <- which(cor_contrast3, arr.ind = T)
 nrow(cor_contrast_ind3)
 
-# high pearson and low kendall
-cor_contrast4 <- (abs(cor_pearson_mat) > 0.8) & (abs(cor_kendall_mat) < 0.2)
+# high pearson and low kendall (linearity vs monotone)
+cor_contrast4 <- (abs(cor_pearson_mat) > 0.85) & (abs(faster_kendall_mat) < 0.15)
 cor_contrast_ind4 <- which(cor_contrast4, arr.ind = T)
 nrow(cor_contrast_ind4)
 
-# low pearson and high distance correlation
-cor_contrast5 <- (abs(cor_pearson_mat) < 0.2) & (dist_cor_mat > 0.6)
+# low pearson and high distance correlation (linearity vs non-linearity)
+cor_contrast5 <- (abs(cor_pearson_mat) < 0.45) & (abs(cor_dist_mat) > 0.55)
 cor_contrast_ind5 <- which(cor_contrast5, arr.ind = T)
+nrow(cor_contrast_ind5)
 
-# high pearson and low distance correlation
-cor_contrast6 <- (abs(cor_pearson_mat) > 0.6) & (dist_cor_mat < 0.4)
+# high pearson and low distance correlation (linearity vs non-linearity)
+cor_contrast6 <- (abs(cor_pearson_mat) > 0.7) & (abs(cor_dist_mat) < 0.3)
 cor_contrast_ind6 <- which(cor_contrast6, arr.ind = T)
 nrow(cor_contrast_ind6)
 
-# low pearson and high MIC
-cor_contrast7 <- (abs(cor_pearson_mat) < 0.2) & (abs(cor_MIC_mat) > 0.75)
+# low pearson and high MIC (linearity vs Information)
+cor_contrast7 <- (abs(cor_pearson_mat) < 0.25) & (abs(cor_MIC_mat) > 0.75)
 cor_contrast_ind7 <- which(cor_contrast7, arr.ind = T)
 nrow(cor_contrast_ind7)
 
-# high pearson and low MIC
-cor_contrast8 <- (abs(cor_pearson_mat) > 0.8) & (abs(cor_MIC_mat) < 0.25)
+# high pearson and low MIC (linearity vs Information)
+cor_contrast8 <- (abs(cor_pearson_mat) > 0.75) & (abs(cor_MIC_mat) < 0.25)
 cor_contrast_ind8 <- which(cor_contrast8, arr.ind = T)
 nrow(cor_contrast_ind8)
+
+# low pearson and high XI 
+cor_contrast9 <- (abs(cor_pearson_mat) < 0.45) & (abs(cor_XI_mat) > 0.55)
+cor_contrast_ind9 <- which(cor_contrast9, arr.ind = T)
+nrow(cor_contrast_ind9)
+
+# high pearson and low XI
+cor_contrast10 <- (abs(cor_pearson_mat) > 0.85) & (abs(cor_XI_mat) < 0.15)
+cor_contrast_ind10 <- which(cor_contrast10, arr.ind = T)
+nrow(cor_contrast_ind10)
+
+# low MIC and high XI
+cor_contrast11 <- (abs(cor_MIC_mat) < 0.4) & (abs(cor_XI_mat) > 0.6)
+cor_contrast_ind11 <- which(cor_contrast11, arr.ind = T)
+nrow(cor_contrast_ind11)
+
+# high MIC and low XI
+cor_contrast12 <- (abs(cor_MIC_mat) > 0.70) & (abs(cor_XI_mat) < 0.30)
+cor_contrast_ind12 <- which(cor_contrast12, arr.ind = T)
+nrow(cor_contrast_ind12)
+
+# low spearman and high distance correlation (monotone vs non-linearity)
+cor_contrast13 <- (abs(cor_spearman_mat) < 0.2) & (abs(cor_dist_mat) > 0.8)
+cor_contrast_ind13 <- which(cor_contrast13, arr.ind = T)
+nrow(cor_contrast_ind13)
+
+# high spearman and low distance correlation (monotone vs non-linearity)
+cor_contrast14 <- (abs(cor_spearman_mat) > 0.6) & (abs(cor_dist_mat) < 0.4)
+cor_contrast_ind14 <- which(cor_contrast14, arr.ind = T)
+nrow(cor_contrast_ind14)
+
+# low spearman and high MIC (monotone vs Information)
+cor_contrast15 <- (abs(cor_spearman_mat) < 0.2) & (abs(cor_MIC_mat) > 0.8)
+cor_contrast_ind15 <- which(cor_contrast15, arr.ind = T)
+nrow(cor_contrast_ind15)
+
+# high spearman and low MIC (monotone vs Information)
+cor_contrast16 <- (abs(cor_spearman_mat) > 0.65) & (abs(cor_MIC_mat) < 0.35)
+cor_contrast_ind16 <- which(cor_contrast16, arr.ind = T)
+nrow(cor_contrast_ind16)
+
+# low distance correlation and high MIC (non-linearity vs Information)
+cor_contrast17 <- (abs(cor_dist_mat) < 0.4) & (abs(cor_MIC_mat) > 0.6)
+cor_contrast_ind17 <- which(cor_contrast17, arr.ind = T)
+nrow(cor_contrast_ind17)
+
+# high distance correlation and low MIC (non-linearity vs Information)
+cor_contrast18 <- (abs(cor_dist_mat) > 0.7) & (abs(cor_MIC_mat) < 0.3)
+cor_contrast_ind18 <- which(cor_contrast18, arr.ind = T)
+nrow(cor_contrast_ind18)
 ```
 
-## Visualization of low pearson (<0.3) and high spearman (>0.7)
+## Visualization of low pearson (<0.30) and high spearman (>0.7) (linearity vs monotone)
 
 ```{r}
-par(mfrow = c(2, 3))
-for (i in 1:nrow(cor_contrast_ind1)){
+par(mfrow = c(2, 5))
+for (i in 1:10){
    index1 <- cor_contrast_ind1[i, 1]; index2 <- cor_contrast_ind1[i, 2]
    plot(sub_dat[,index1], sub_dat[,index2], col = sub_cluster_labels, asp = T,
-      pch = 16, xlab = paste0(colnames(sub_dat)[index1], ", (", idx1, ")"),
-      ylab = paste0(colnames(sub_dat)[index2], ", (", idx2, ")"), 
+      pch = 16, xlab = paste0(colnames(sub_dat)[index1], ", (", index1, ")"),
+      ylab = paste0(colnames(sub_dat)[index2], ", (", index2, ")"), 
       main = paste(paste0("Pearson of ", round(cor_pearson_mat[index1, index2], 3)),
                    "\n",
                    paste0("Spearman of ", round(cor_spearman_mat[index1, index2], 3))))
 }
 ```
 
-## Visualization of low pearson (<0.2) and high distance correlation (>0.6)
+## Visualization of high pearson (<0.8) and low spearman (<0.2) (linearity vs monotone)
 
 ```{r}
-par(mfrow = c(2, 3))
-
-for (i in 1:nrow(cor_contrast_ind5)){
-   index1 <- cor_contrast_ind5[i, 1]; index2 <- cor_contrast_ind5[i, 2]
+par(mfrow = c(2, 5))
+for (i in 1:10){
+   index1 <- cor_contrast_ind2[i, 1]; index2 <- cor_contrast_ind2[i, 2]
    plot(sub_dat[,index1], sub_dat[,index2], col = sub_cluster_labels, asp = T,
-      pch = 16, xlab = paste0(colnames(sub_dat)[index1], ", (", idx1, ")"),
-      ylab = paste0(colnames(sub_dat)[index2], ", (", idx2, ")"), 
+      pch = 16, xlab = paste0(colnames(sub_dat)[index1], ", (", index1, ")"),
+      ylab = paste0(colnames(sub_dat)[index2], ", (", index2, ")"), 
       main = paste(paste0("Pearson of ", round(cor_pearson_mat[index1, index2], 3)),
                    "\n",
-                   paste0("Dist.Cor of ", round(dist_cor_mat[index1, index2], 3))))
+                   paste0("Spearman of ", round(cor_spearman_mat[index1, index2], 3))))
 }
 ```
 
-## Visualization of low pearson (< 0.2) and high MIC (> 0.75)
+## Visualization of low pearson (<0.45) and high kendall (>0.55) (linearity vs monotone)
 
 ```{r}
-par(mfrow = c(2, 4))
+par(mfrow = c(2, 5))
+for (i in 1:10){
+   index1 <- cor_contrast_ind3[i, 1]; index2 <- cor_contrast_ind3[i, 2]
+   plot(sub_dat[,index1], sub_dat[,index2], col = sub_cluster_labels, asp = T,
+      pch = 16, xlab = paste0(colnames(sub_dat)[index1], ", (", index1, ")"),
+      ylab = paste0(colnames(sub_dat)[index2], ", (", index2, ")"), 
+      main = paste(paste0("Pearson of ", round(cor_pearson_mat[index1, index2], 3)),
+                   "\n",
+                   paste0("Kendall of ", round(faster_kendall_mat[index1, index2], 3))))
+}
+```
 
-for (i in 1:nrow(cor_contrast_ind7)){
+## Visualization of high pearson (<0.85) and low kendall (<0.15) (linearity vs monotone)
+
+```{r}
+par(mfrow = c(2, 5))
+for (i in 1:10){
+   index1 <- cor_contrast_ind4[i, 1]; index2 <- cor_contrast_ind4[i, 2]
+   plot(sub_dat[,index1], sub_dat[,index2], col = sub_cluster_labels, asp = T,
+      pch = 16, xlab = paste0(colnames(sub_dat)[index1], ", (", index1, ")"),
+      ylab = paste0(colnames(sub_dat)[index2], ", (", index2, ")"), 
+      main = paste(paste0("Pearson of ", round(cor_pearson_mat[index1, index2], 3)),
+                   "\n",
+                   paste0("Kendall of ", round(faster_kendall_mat[index1, index2], 3))))
+}
+```
+
+## Visualization of high pearson (>0.70) and low distance correlation (<0.30) (linearity vs Non-linearity)
+
+```{r}
+par(mfrow = c(2, 5))
+
+for (i in 1:10){
+   index1 <- cor_contrast_ind6[i, 1]; index2 <- cor_contrast_ind6[i, 2]
+   plot(sub_dat[,index1], sub_dat[,index2], col = sub_cluster_labels, asp = T,
+      pch = 16, xlab = paste0(colnames(sub_dat)[index1], ", (", index1, ")"),
+      ylab = paste0(colnames(sub_dat)[index2], ", (", index2, ")"), 
+      main = paste(paste0("Pearson of ", round(cor_pearson_mat[index1, index2], 3)),
+                   "\n",
+                   paste0("Dist.Cor of ", round(cor_dist_mat[index1, index2], 3))))
+}
+```
+
+## Visualization of low pearson (< 0.45) and high MIC (> 0.55) (linearity vs Information)
+
+```{r}
+par(mfrow = c(2, 5))
+
+for (i in 1:10){
    index1 <- cor_contrast_ind7[i, 1]; index2 <- cor_contrast_ind7[i, 2]
    plot(sub_dat[,index1], sub_dat[,index2], col = sub_cluster_labels, asp = T,
-      pch = 16, xlab = paste0(colnames(sub_dat)[index1], ", (", idx1, ")"),
-      ylab = paste0(colnames(sub_dat)[index2], ", (", idx2, ")"), 
+      pch = 16, xlab = paste0(colnames(sub_dat)[index1], ", (", index1, ")"),
+      ylab = paste0(colnames(sub_dat)[index2], ", (", index2, ")"), 
       main = paste(paste0("Pearson of ", round(cor_pearson_mat[index1, index2], 3)),
                    "\n",
                    paste0("MIC of ", round(cor_MIC_mat[index1, index2], 3))))
 }
 ```
 
-## Visualization of high pearson (> 0.8) and low MIC (< 0.25)
+## Visualization of high pearson (> 0.85) and low MIC (< 0.15) (linearity vs Information)
 
 ```{r}
-par(mfrow = c(1,3))
+par(mfrow = c(2,5))
 
-for (i in 1:nrow(cor_contrast_ind8)){
+for (i in 1:10){
    index1 <- cor_contrast_ind8[i, 1]; index2 <- cor_contrast_ind8[i, 2]
    plot(sub_dat[,index1], sub_dat[,index2], col = sub_cluster_labels, asp = T,
-      pch = 16, xlab = paste0(colnames(sub_dat)[index1], ", (", idx1, ")"),
-      ylab = paste0(colnames(sub_dat)[index2], ", (", idx2, ")"), 
+      pch = 16, xlab = paste0(colnames(sub_dat)[index1], ", (", index1, ")"),
+      ylab = paste0(colnames(sub_dat)[index2], ", (", index2, ")"), 
       main = paste(paste0("Pearson of ", round(cor_pearson_mat[index1, index2], 3)),
                    "\n",
                    paste0("MIC of ", round(cor_MIC_mat[index1, index2], 3))))
 }
+```
+
+## Visualization of low pearson (< 0.45) and high XI (> 0.55) 
+
+```{r}
+par(mfrow = c(2, 5))
+
+for (i in 1:10){
+   index1 <- cor_contrast_ind9[i, 1]; index2 <- cor_contrast_ind9[i, 2]
+   plot(sub_dat[,index1], sub_dat[,index2], col = sub_cluster_labels, asp = T,
+      pch = 16, xlab = paste0(colnames(sub_dat)[index1], ", (", index1, ")"),
+      ylab = paste0(colnames(sub_dat)[index2], ", (", index2, ")"), 
+      main = paste(paste0("Pearson of ", round(cor_pearson_mat[index1, index2], 3)),
+                   "\n",
+                   paste0("XI of ", round(cor_XI_mat[index1, index2], 3))))
+}
+```
+
+## Visualization of high pearson (> 0.85) and low XI (< 0.15)
+
+```{r}
+par(mfrow = c(2,5))
+
+for (i in 1:10){
+   index1 <- cor_contrast_ind10[i, 1]; index2 <- cor_contrast_ind10[i, 2]
+   plot(sub_dat[,index1], sub_dat[,index2], col = sub_cluster_labels, asp = T,
+      pch = 16, xlab = paste0(colnames(sub_dat)[index1], ", (", index1, ")"),
+      ylab = paste0(colnames(sub_dat)[index2], ", (", index2, ")"), 
+      main = paste(paste0("Pearson of ", round(cor_pearson_mat[index1, index2], 3)),
+                   "\n",
+                   paste0("XI of ", round(cor_XI_mat[index1, index2], 3))))
+}
+```
+
+## Visualization of high MIC (> 0.70) and low XI (< 0.30)
+
+```{r}
+par(mfrow = c(2,5))
+
+for (i in 1:10){
+   index1 <- cor_contrast_ind12[i, 1]; index2 <- cor_contrast_ind12[i, 2]
+   plot(sub_dat[,index1], sub_dat[,index2], col = sub_cluster_labels, asp = T,
+      pch = 16, xlab = paste0(colnames(sub_dat)[index1], ", (", index1, ")"),
+      ylab = paste0(colnames(sub_dat)[index2], ", (", index2, ")"), 
+      main = paste(paste0("MIC of ", round(cor_MIC_mat[index1, index2], 3)),
+                   "\n",
+                   paste0("XI of ", round(cor_XI_mat[index1, index2], 3))))
+}
+```
+
+## Visualization of low Spearman (< 0.20) and high distance correlation (> 0.80) (monotone vs non-linearity)
+
+```{r}
+par(mfrow = c(2,5))
+
+for (i in 1:5){
+   index1 <- cor_contrast_ind13[i, 1]; index2 <- cor_contrast_ind13[i, 2]
+   plot(sub_dat[,index1], sub_dat[,index2], col = sub_cluster_labels, asp = T,
+      pch = 16, xlab = paste0(colnames(sub_dat)[index1], ", (", index1, ")"),
+      ylab = paste0(colnames(sub_dat)[index2], ", (", index2, ")"), 
+      main = paste(paste0("Spearman of ", round(cor_spearman_mat[index1, index2], 3)),
+                   "\n",
+                   paste0("Dist.Cor of ", round(cor_dist_mat[index1, index2], 3))))
+}
+```
+
+## Visualization of high Spearman (> 0.60) and low distance correlation (< 0.40) (monotone vs non-linearity)
+
+```{r}
+par(mfrow = c(2,5))
+
+for (i in 1:10){
+   index1 <- cor_contrast_ind14[i, 1]; index2 <- cor_contrast_ind14[i, 2]
+   plot(sub_dat[,index1], sub_dat[,index2], col = sub_cluster_labels, asp = T,
+      pch = 16, xlab = paste0(colnames(sub_dat)[index1], ", (", index1, ")"),
+      ylab = paste0(colnames(sub_dat)[index2], ", (", index2, ")"), 
+      main = paste(paste0("Spearman of ", round(cor_spearman_mat[index1, index2], 3)),
+                   "\n",
+                   paste0("Dist.Cor of ", round(cor_dist_mat[index1, index2], 3))))
+}
+```
+
+## Visualization of low Spearman (< 0.2) and high MIC (> 0.80) (monotone vs information)
+
+```{r}
+par(mfrow = c(2,5))
+
+for (i in 1:10){
+   index1 <- cor_contrast_ind15[i, 1]; index2 <- cor_contrast_ind15[i, 2]
+   plot(sub_dat[,index1], sub_dat[,index2], col = sub_cluster_labels, asp = T,
+      pch = 16, xlab = paste0(colnames(sub_dat)[index1], ", (", index1, ")"),
+      ylab = paste0(colnames(sub_dat)[index2], ", (", index2, ")"), 
+      main = paste(paste0("Spearman of ", round(cor_spearman_mat[index1, index2], 3)),
+                   "\n",
+                   paste0("MIC of ", round(cor_MIC_mat[index1, index2], 3))))
+}
+```
+
+## Visualization of low distance correlation (< 0.4) and high MIC (> 0.6) (non-linearity vs information)
+
+```{r}
+par(mfrow = c(2,5))
+
+for (i in 1:10){
+   index1 <- cor_contrast_ind17[i, 1]; index2 <- cor_contrast_ind17[i, 2]
+   plot(sub_dat[,index1], sub_dat[,index2], col = sub_cluster_labels, asp = T,
+      pch = 16, xlab = paste0(colnames(sub_dat)[index1], ", (", index1, ")"),
+      ylab = paste0(colnames(sub_dat)[index2], ", (", index2, ")"), 
+      main = paste(paste0("Dist.Cor of ", round(cor_spearman_mat[index1, index2], 3)),
+                   "\n",
+                   paste0("MIC of ", round(cor_MIC_mat[index1, index2], 3))))
+}
+```
+
+## Extract meaningful indices for celltype_practice
+
+```{r}
+indices <- c(cor_contrast_ind1, cor_contrast_ind2, cor_contrast_ind3,
+             cor_contrast_ind4, cor_contrast_ind5, cor_contrast_ind6,
+             cor_contrast_ind7, cor_contrast_ind8, cor_contrast_ind9,
+             cor_contrast_ind10, cor_contrast_ind11, cor_contrast_ind12,
+             cor_contrast_ind13, cor_contrast_ind14, cor_contrast_ind15,
+             cor_contrast_ind16, cor_contrast_ind17, cor_contrast_ind18)
+indices <- unique(indices)
+
+#save(indices, file = "meaningful_indices.RData")
+```
+
+## Store correlation matrices for future usage.
+
+```{r}
+# save(cor_pearson_mat,
+#     cor_spearman_mat,
+#     faster_kendall_mat,
+#     cor_dist_mat,
+#     cor_hoeffd_mat,
+#     cor_MI_mat,
+#     cor_MIC_mat,
+#     cor_XI_mat,
+#     cor_HSIC_mat,
+#     cor_blomqvist_mat,
+#     file = "Correlation_data.RData")
 ```
