@@ -68,3 +68,4 @@ for(i in 1:3){
 # the following diff_mat quantities for each pair of genes, what the difference between the largest
 ## and smallest pearson corrleation is among the 3 cell-types
 diff_mat <- apply(array_all, MARGIN = c(1,2), FUN = function(x){diff(range(x))})
+which(diff_mat == sort(diff_mat, decreasing = T)[1], arr.ind = T)
