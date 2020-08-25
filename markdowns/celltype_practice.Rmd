@@ -8,7 +8,9 @@ output:
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(echo = TRUE,
+                      message = FALSE,
+                      warning = FALSE)
 ```
 
 # Data Import
@@ -27,7 +29,7 @@ cluster_labels <- as.numeric(as.factor(cell_type$level1class))
 ## Divide the dataset by cell type
 
 ```{r}
-cell_labels <- unique(cell_type$level1class)
+cell_labels <- unique(as.factor(cell_type$level1class))
 subset_data <- list()
 subset_heatmap <- list()
 load("meaningful_indices.RData")
@@ -52,9 +54,10 @@ cell_num <- length(cell_labels)
 
 ```{r}
 library(ggplot2)
+library(scales)
 
 # Store a heatmap
-store_heatmap <- function(heatmap_matrix, method, celltype, abs = F){
+store_heatmap <- function(cor_mat, method, celltype, abs = F){
   if (abs){
     heatmap_title <- paste0("Abs_Heatmap of ", method,
                             " Correlation\n(", celltype, ")")  
@@ -64,13 +67,24 @@ store_heatmap <- function(heatmap_matrix, method, celltype, abs = F){
                             " Correlation\n(", celltype, ")")
   }
   
-  heatmap <- ggplot(data = heatmap_matrix, 
-                    aes(x = Var2, y = Var1, fill = value)) + 
+  heatmap_matrix <- reshape2::melt(cor_mat, na.rm = T)
+  heatmap_matrix <- heatmap_matrix[!is.na(heatmap_matrix$value),]
+  
+  len <- 7
+  break_vec <- round(quantile(cor_mat,
+                              probs = seq(0, 1,length.out = len),
+                              na.rm = T), 3)
+  break_vec[1] <- min(cor_mat, na.rm = T) - 0.1
+  break_vec[length(break_vec)] <- max(cor_mat, na.rm = T) + 0.1
+  
+  heatmap_matrix$value <- cut(heatmap_matrix$value, breaks = break_vec)
+  
+  ## ggplot to draw a heatmap with the viridis palette
+  cor_heatmap <- ggplot(data = heatmap_matrix, 
+                        aes(x = Var2, y = Var1, fill = value)) + 
     geom_tile() +
-    scale_fill_viridis_b(option = "D", direction = -1,
-                         breaks = round(as.numeric(
-      quantile(heatmap_matrix[,3],
-               probs = seq(0, 1,length.out = 6))), 1)) +
+    scale_fill_manual(breaks = sort(unique(heatmap_matrix$value)), 
+                      values = rev(viridis_pal(begin = 0, end = 1)(len-1))) +
     theme(axis.text.x = element_blank(),
           axis.text.y = element_blank(),
           axis.ticks.x = element_blank(),
@@ -78,16 +92,14 @@ store_heatmap <- function(heatmap_matrix, method, celltype, abs = F){
           axis.title.x = element_blank(),
           axis.title.y = element_blank(),
           panel.background = element_rect(fill = "transparent")) +
-    labs(title = heatmap_title)
-  return (heatmap)
+    labs(title = paste0(heatmap_title, label[i], " Correlation")) 
+  return (cor_heatmap)
   }
 ```
 
 ## 1. Pearson Correlation
 
 ```{r}
-library(reshape2)
-
 pearson_median <- c()
 pearson_array <- array(NA, dim = c(col, col, cell_num))
 
@@ -130,10 +142,9 @@ for (i in 1:length(cell_labels)){
   subset_pearson_heatmap <- cor(subset_heatmap[[i]], method = "pearson")
   subset_pearson_heatmap[upper.tri(subset_pearson_heatmap, diag = T)] <- NA
   
-  melted_matrix <- melt(subset_pearson_heatmap, na.rm = T)
   # ggplot to draw a heatmap with the viridis palette
-  pearson_heatmap[[i]] <- store_heatmap(melted_matrix, "Pearson",
-                                        cell_labels[i])
+  pearson_heatmap[[i]] <- store_heatmap(subset_pearson_heatmap, "Pearson",
+                                        cell_labels[i], abs = F)
 }
 ```
 
@@ -144,7 +155,7 @@ par(mfrow = c(2,4))
 for (i in 1:length(cell_labels)){
   sub_dat <- subset_data[[i]]
   idx1 <- pearson_max_pair1[i]; idx2 <- pearson_max_pair2[i]
-  plot(sub_dat[,idx1], sub_dat[,idx2], asp = T,
+  plot(sub_dat[,idx1], sub_dat[,idx2], asp = T, col = cell_labels[i],
       pch = 16, xlab = paste0(colnames(sub_dat)[idx1], ", (", idx1, ")"),
       ylab = paste0(colnames(sub_dat)[idx2], ", (", idx2, ")"), 
       main = paste0("Correlation of ", round(pearson_max[i], 3),
@@ -159,7 +170,7 @@ par(mfrow = c(2,4))
 for (i in 1:length(cell_labels)){
   sub_dat <- subset_data[[i]]
   idx1 <- pearson_min_pair1[i]; idx2 <- pearson_min_pair2[i]
-  plot(sub_dat[,idx1], sub_dat[,idx2], asp = T,
+  plot(sub_dat[,idx1], sub_dat[,idx2], asp = T, col = cell_labels[i],
       pch = 16, xlab = paste0(colnames(sub_dat)[idx1], ", (", idx1, ")"),
       ylab = paste0(colnames(sub_dat)[idx2], ", (", idx2, ")"), 
       main = paste0("Correlation of ", round(pearson_min[i], 3),
@@ -173,29 +184,36 @@ for (i in 1:length(cell_labels)){
 diff_pearson <- apply(pearson_array, MARGIN = c(1,2),
                       FUN = function(x) {diff(range(x))})
 
-diff_pearson_ind <- which(diff_pearson == max(diff_pearson, na.rm = T),
+for (i in 1:4){
+  diff_pearson_vec <- sort(diff_pearson, decreasing = T)
+  diff_pearson_ind <- which(diff_pearson == diff_pearson_vec[i],
                          arr.ind = T)
 
-diff_idx1 <- diff_pearson_ind[1]; diff_idx2 <- diff_pearson_ind[2]
+  diff_idx1 <- diff_pearson_ind[1]; diff_idx2 <- diff_pearson_ind[2]
 
-par(mfrow = c(2,4))
-plot(sub_full[, diff_idx1], sub_full[, diff_idx2], asp = T, pch = 16,
-     col = cluster_labels,
-     xlab = paste0(colnames(sub_dat)[diff_idx1], ", (", diff_idx1, ")"),
-     ylab = paste0(colnames(sub_dat)[diff_idx2], ", (", diff_idx2, ")"),  
-     main = paste0("Correlation of ",
-                   round(cor(sub_full[, diff_idx1],
-                             sub_full[, diff_idx2],
-                             method = "pearson"), 3)))
-for (i in 1:length(cell_labels)){
-  sub_dat <- subset_data[[i]]
-  plot(sub_dat[,diff_idx1], sub_dat[,diff_idx2], asp = T,
-      pch = 16, xlab = paste0(colnames(sub_dat)[diff_idx1], ", (", diff_idx1, ")"),
-      ylab = paste0(colnames(sub_dat)[diff_idx2], ", (", diff_idx2, ")"), 
-      main = paste0("Correlation of ",
-                    round(pearson_array[diff_idx1, diff_idx2, i], 3),
-                    "\nCell_type: ", cell_labels[i]),
-      xlim = c(-1, 2), ylim = c(-1, 3))
+  par(mfrow = c(2,4))
+  plot(sub_full[, diff_idx1], sub_full[, diff_idx2], asp = T, pch = 16,
+       col = cluster_labels,
+       xlab = paste0(colnames(sub_dat)[diff_idx1], ", (", diff_idx1, ")"),
+       ylab = paste0(colnames(sub_dat)[diff_idx2], ", (", diff_idx2, ")"),  
+       main = paste0("Correlation of ",
+                     round(cor(sub_full[, diff_idx1],
+                               sub_full[, diff_idx2],
+                               method = "pearson"), 3),
+                     "\nDifference of ",
+                     round(diff_pearson_vec[i], 3)),
+       xlim = c(-1, 3), ylim = c(-2, 5))
+  for (j in 1:length(cell_labels)){
+    sub_dat <- subset_data[[j]]
+    plot(sub_dat[,diff_idx1], sub_dat[,diff_idx2], asp = T,
+         pch = 16, col = cell_labels[j],
+         xlab = paste0(colnames(sub_dat)[diff_idx1], ", (", diff_idx1, ")"),
+         ylab = paste0(colnames(sub_dat)[diff_idx2], ", (", diff_idx2, ")"), 
+         main = paste0("Correlation of ",
+                       round(pearson_array[diff_idx1, diff_idx2, j], 3),
+                       "\nCell_type: ", cell_labels[j]),
+         xlim = c(-1, 3), ylim = c(-2, 5))
+  }
 }
 ```
 
@@ -251,11 +269,8 @@ for (i in 1:length(cell_labels)){
   subset_spearman_heatmap <- cor(subset_heatmap[[i]], method = "spearman")
   subset_spearman_heatmap[upper.tri(subset_spearman_heatmap, diag = T)] <- NA
   
-  # Store a heatmap
-  melted_matrix <- melt(subset_spearman_heatmap, na.rm = T)
-  
   # ggplot to draw a heatmap with the viridis palette
-  spearman_heatmap[[i]] <- store_heatmap(melted_matrix, "Spearman",
+  spearman_heatmap[[i]] <- store_heatmap(subset_spearman_heatmap, "Spearman",
                                         cell_labels[i])
 }
 ```
@@ -268,10 +283,11 @@ for (i in 1:length(cell_labels)){
   sub_dat <- subset_data[[i]]
   idx1 <- spearman_max_pair1[i]; idx2 <- spearman_max_pair2[i]
   plot(sub_dat[,idx1], sub_dat[,idx2], asp = T,
-      pch = 16, xlab = paste0(colnames(sub_dat)[idx1], ", (", idx1, ")"),
-      ylab = paste0(colnames(sub_dat)[idx2], ", (", idx2, ")"), 
-      main = paste0("Correlation of ", round(spearman_max[i], 3),
-                    "\nCell_type: ", cell_labels[i]))
+       col = cell_labels[i], pch = 16,
+       xlab = paste0(colnames(sub_dat)[idx1], ", (", idx1, ")"),
+       ylab = paste0(colnames(sub_dat)[idx2], ", (", idx2, ")"), 
+       main = paste0("Correlation of ", round(spearman_max[i], 3),
+                     "\nCell_type: ", cell_labels[i]))
 }
 ```
 
@@ -283,10 +299,11 @@ for (i in 1:length(cell_labels)){
   sub_dat <- subset_data[[i]]
   idx1 <- spearman_min_pair1[i]; idx2 <- spearman_min_pair2[i]
   plot(sub_dat[,idx1], sub_dat[,idx2], asp = T,
-      pch = 16, xlab = paste0(colnames(sub_dat)[idx1], ", (", idx1, ")"),
-      ylab = paste0(colnames(sub_dat)[idx2], ", (", idx2, ")"), 
-      main = paste0("Correlation of ", round(spearman_min[i], 3),
-                    "\nCell_type: ", cell_labels[i]))
+       pch = 16, col = cell_labels[i],
+       xlab = paste0(colnames(sub_dat)[idx1], ", (", idx1, ")"),
+       ylab = paste0(colnames(sub_dat)[idx2], ", (", idx2, ")"), 
+       main = paste0("Correlation of ", round(spearman_min[i], 3),
+                     "\nCell_type: ", cell_labels[i]))
 }
 ```
 
@@ -295,30 +312,36 @@ for (i in 1:length(cell_labels)){
 ```{r}
 diff_spearman <- apply(spearman_array, MARGIN = c(1,2),
                       FUN = function(x) {diff(range(x))})
+diff_spearman_vec <- sort(diff_spearman, decreasing = T)
 
-diff_spearman_ind <- which(diff_spearman == max(diff_spearman, na.rm = T),
-                         arr.ind = T)
+for (i in 1:4){
+  diff_spearman_ind <- which(diff_spearman == diff_spearman_vec[i],
+                             arr.ind = T)
+  diff_idx1 <- diff_spearman_ind[1]; diff_idx2 <- diff_spearman_ind[2]
 
-diff_idx1 <- diff_spearman_ind[1]; diff_idx2 <- diff_spearman_ind[2]
-
-par(mfrow = c(2,4))
-plot(sub_full[, diff_idx1], sub_full[, diff_idx2], asp = T, pch = 16,
-     col = cluster_labels,
-     xlab = paste0(colnames(sub_dat)[diff_idx1], ", (", diff_idx1, ")"),
-     ylab = paste0(colnames(sub_dat)[diff_idx2], ", (", diff_idx2, ")"),  
-     main = paste0("Correlation of ",
-                   round(cor(sub_full[, diff_idx1],
-                             sub_full[, diff_idx2],
-                             method = "spearman"), 3)))
-for (i in 1:length(cell_labels)){
-  sub_dat <- subset_data[[i]]
-  plot(sub_dat[,diff_idx1], sub_dat[,diff_idx2], asp = T,
-      pch = 16, xlab = paste0(colnames(sub_dat)[diff_idx1], ", (", diff_idx1, ")"),
-      ylab = paste0(colnames(sub_dat)[diff_idx2], ", (", diff_idx2, ")"), 
-      main = paste0("Correlation of ",
-                    round(spearman_array[diff_idx1, diff_idx2, i], 3),
-                    "\nCell_type: ", cell_labels[i]),
-      xlim = c(-1.5, 3), ylim = c(-1, 3))
+  par(mfrow = c(2,4))
+  plot(sub_full[, diff_idx1], sub_full[, diff_idx2], asp = T, pch = 16,
+       col = cluster_labels,
+       xlab = paste0(colnames(sub_dat)[diff_idx1], ", (", diff_idx1, ")"),
+       ylab = paste0(colnames(sub_dat)[diff_idx2], ", (", diff_idx2, ")"),  
+       main = paste0("Correlation of ",
+                     round(cor(sub_full[, diff_idx1],
+                               sub_full[, diff_idx2],
+                               method = "spearman"), 3),
+                     "\nDifference of ",
+                     round(diff_spearman_vec[i], 3)),
+       xlim = c(-1.5, 3), ylim = c(-1, 3))
+  for (j in 1:length(cell_labels)){
+    sub_dat <- subset_data[[j]]
+    plot(sub_dat[,diff_idx1], sub_dat[,diff_idx2], asp = T,
+         pch = 16, col = cell_labels[j],
+         xlab = paste0(colnames(sub_dat)[diff_idx1], ", (", diff_idx1, ")"),
+         ylab = paste0(colnames(sub_dat)[diff_idx2], ", (", diff_idx2, ")"), 
+         main = paste0("Correlation of ",
+                       round(spearman_array[diff_idx1, diff_idx2, j], 3),
+                       "\nCell_type: ", cell_labels[j]),
+         xlim = c(-1.5, 3), ylim = c(-1, 3))
+  }
 }
 ```
 
@@ -375,11 +398,8 @@ for (i in 1:length(cell_labels)){
   subset_kendall_heatmap <- cor.fk(subset_heatmap[[i]])
   subset_kendall_heatmap[upper.tri(subset_kendall_heatmap, diag = T)] <- NA
   
-  # Store a heatmap
-  melted_matrix <- melt(subset_kendall_heatmap, na.rm = T)
-  
   # ggplot to draw a heatmap with the viridis palette
-  kendall_heatmap[[i]] <- store_heatmap(melted_matrix, "Kendall",
+  kendall_heatmap[[i]] <- store_heatmap(subset_kendall_heatmap, "Kendall",
                                         cell_labels[i])
 }
 ```
@@ -392,10 +412,11 @@ for (i in 1:length(cell_labels)){
   sub_dat <- subset_data[[i]]
   idx1 <- kendall_max_pair1[i]; idx2 <- kendall_max_pair2[i]
   plot(sub_dat[,idx1], sub_dat[,idx2], asp = T,
-      pch = 16, xlab = paste0(colnames(sub_dat)[idx1], ", (", idx1, ")"),
-      ylab = paste0(colnames(sub_dat)[idx2], ", (", idx2, ")"), 
-      main = paste0("Correlation of ", round(kendall_max[i], 3),
-                    "\nCell_type: ", cell_labels[i]))
+       pch = 16, col = cell_labels[i],
+       xlab = paste0(colnames(sub_dat)[idx1], ", (", idx1, ")"),
+       ylab = paste0(colnames(sub_dat)[idx2], ", (", idx2, ")"), 
+       main = paste0("Correlation of ", round(kendall_max[i], 3),
+                     "\nCell_type: ", cell_labels[i]))
 }
 ```
 
@@ -407,10 +428,11 @@ for (i in 1:length(cell_labels)){
   sub_dat <- subset_data[[i]]
   idx1 <- kendall_min_pair1[i]; idx2 <- kendall_min_pair2[i]
   plot(sub_dat[,idx1], sub_dat[,idx2], asp = T,
-      pch = 16, xlab = paste0(colnames(sub_dat)[idx1], ", (", idx1, ")"),
-      ylab = paste0(colnames(sub_dat)[idx2], ", (", idx2, ")"), 
-      main = paste0("Correlation of ", round(kendall_min[i], 3),
-                    "\nCell_type: ", cell_labels[i]))
+       pch = 16, col = cell_labels[i],
+       xlab = paste0(colnames(sub_dat)[idx1], ", (", idx1, ")"),
+       ylab = paste0(colnames(sub_dat)[idx2], ", (", idx2, ")"), 
+       main = paste0("Correlation of ", round(kendall_min[i], 3),
+                     "\nCell_type: ", cell_labels[i]))
 }
 ```
 
@@ -420,28 +442,36 @@ for (i in 1:length(cell_labels)){
 diff_kendall <- apply(kendall_array, MARGIN = c(1,2),
                       FUN = function(x) {diff(range(x))})
 
-diff_kendall_ind <- which(diff_kendall == max(diff_kendall, na.rm = T),
-                         arr.ind = T)
+diff_kendall_vec <- sort(diff_kendall, decreasing = T)
 
-diff_idx1 <- diff_kendall_ind[1]; diff_idx2 <- diff_kendall_ind[2]
+for (i in 1:4){
+  diff_kendall_ind <- which(diff_kendall == diff_kendall_vec[i],
+                            arr.ind = T)
+  
+  diff_idx1 <- diff_kendall_ind[1]; diff_idx2 <- diff_kendall_ind[2]
 
-par(mfrow = c(2,4))
-plot(sub_full[, diff_idx1], sub_full[, diff_idx2], asp = T, pch = 16,
-     col = cluster_labels,
-     xlab = paste0(colnames(sub_dat)[diff_idx1], ", (", diff_idx1, ")"),
-     ylab = paste0(colnames(sub_dat)[diff_idx2], ", (", diff_idx2, ")"),  
-     main = paste0("Correlation of ",
-                   round(cor.fk(sub_full[, diff_idx1],
-                             sub_full[, diff_idx2]), 3)))
-for (i in 1:length(cell_labels)){
-  sub_dat <- subset_data[[i]]
-  plot(sub_dat[,diff_idx1], sub_dat[,diff_idx2], asp = T,
-      pch = 16, xlab = paste0(colnames(sub_dat)[diff_idx1], ", (", diff_idx1, ")"),
-      ylab = paste0(colnames(sub_dat)[diff_idx2], ", (", diff_idx2, ")"), 
-      main = paste0("Correlation of ",
-                    round(kendall_array[diff_idx1, diff_idx2, i], 3),
-                    "\nCell_type: ", cell_labels[i]),
-      xlim = c(-1.5, 3), ylim = c(-2, 4))
+  par(mfrow = c(2,4))
+  plot(sub_full[, diff_idx1], sub_full[, diff_idx2], asp = T, pch = 16,
+       col = cluster_labels,
+       xlab = paste0(colnames(sub_dat)[diff_idx1], ", (", diff_idx1, ")"),
+       ylab = paste0(colnames(sub_dat)[diff_idx2], ", (", diff_idx2, ")"),  
+       main = paste0("Correlation of ",
+                     round(cor.fk(sub_full[, diff_idx1],
+                                  sub_full[, diff_idx2]), 3),
+                     "\nDifference of ",
+                     round(diff_kendall_vec[i], 3)),
+       xlim = c(-1, 3), ylim = c(-2, 4))
+  for (j in 1:length(cell_labels)){
+    sub_dat <- subset_data[[j]]
+    plot(sub_dat[,diff_idx1], sub_dat[,diff_idx2], asp = T,
+         pch = 16, col = cell_labels[j],
+         xlab = paste0(colnames(sub_dat)[diff_idx1], ", (", diff_idx1, ")"),
+         ylab = paste0(colnames(sub_dat)[diff_idx2], ", (", diff_idx2, ")"), 
+         main = paste0("Correlation of ",
+                       round(kendall_array[diff_idx1, diff_idx2, j], 3),
+                       "\nCell_type: ", cell_labels[j]),
+         xlim = c(-1, 3), ylim = c(-2, 4))
+  }
 }
 ```
 
@@ -472,12 +502,12 @@ dist_heatmap <- list()
 for (i in 1:length(cell_labels)){
   sub_dat <- subset_data[[i]]
   subset_dist <- matrix(nrow = ncol(sub_dat),
-                         ncol = ncol(sub_dat))
+                        ncol = ncol(sub_dat))
 
   for (j in 2:ncol(sub_dat)){
     for (k in 1:(j-1)){
-      subset_dist[j,k] <- dcor(as.numeric(sub_dat[, j]),
-                               as.numeric(sub_dat[, k]))
+      subset_dist[j,k] <- dcor2d(as.numeric(sub_dat[, j]),
+                                 as.numeric(sub_dat[, k]))
     }
   }
   dist_array[ , , i] <- subset_dist
@@ -513,11 +543,8 @@ for (i in 1:length(cell_labels)){
     }
   }
   
-  # Store a heatmap
-  melted_matrix <- melt(subset_dist_heatmap, na.rm = T)
-  
   # ggplot to draw a heatmap with the viridis palette
-  dist_heatmap[[i]] <- store_heatmap(melted_matrix, "Dist.Cor",
+  dist_heatmap[[i]] <- store_heatmap(subset_dist_heatmap, "Dist.Cor",
                                         cell_labels[i])
 }
 ```
@@ -530,10 +557,11 @@ for (i in 1:length(cell_labels)){
   sub_dat <- subset_data[[i]]
   idx1 <- dist_max_pair1[i]; idx2 <- dist_max_pair2[i]
   plot(sub_dat[,idx1], sub_dat[,idx2], asp = T,
-      pch = 16, xlab = paste0(colnames(sub_dat)[idx1], ", (", idx1, ")"),
-      ylab = paste0(colnames(sub_dat)[idx2], ", (", idx2, ")"), 
-      main = paste0("Correlation of ", round(dist_max[i], 3),
-                    "\nCell_type: ", cell_labels[i]))
+       pch = 16, col = cell_labels[i],
+       xlab = paste0(colnames(sub_dat)[idx1], ", (", idx1, ")"),
+       ylab = paste0(colnames(sub_dat)[idx2], ", (", idx2, ")"), 
+       main = paste0("Correlation of ", round(dist_max[i], 3),
+                     "\nCell_type: ", cell_labels[i]))
 }
 ```
 
@@ -545,14 +573,15 @@ for (i in 1:length(cell_labels)){
   sub_dat <- subset_data[[i]]
   idx1 <- dist_min_pair1[i]; idx2 <- dist_min_pair2[i]
   plot(sub_dat[,idx1], sub_dat[,idx2], asp = T,
-      pch = 16, xlab = paste0(colnames(sub_dat)[idx1], ", (", idx1, ")"),
-      ylab = paste0(colnames(sub_dat)[idx2], ", (", idx2, ")"), 
-      main = paste0("Correlation of ", round(dist_min[i], 3),
-                    "\nCell_type: ", cell_labels[i]))
+       pch = 16, col = cell_labels[i],
+       xlab = paste0(colnames(sub_dat)[idx1], ", (", idx1, ")"),
+       ylab = paste0(colnames(sub_dat)[idx2], ", (", idx2, ")"), 
+       main = paste0("Correlation of ", round(dist_min[i], 3),
+                     "\nCell_type: ", cell_labels[i]))
 }
 ```
 
-## Pearson correlation of the gene pair which has the the biggest difference by cell type
+## Distance correlation of the gene pair which has the the biggest difference by cell type
 
 ```{r}
 library(energy)
@@ -565,23 +594,26 @@ diff_dist_ind <- which(diff_dist == max(diff_dist, na.rm = T),
 
 diff_idx1 <- diff_dist_ind[1]; diff_idx2 <- diff_dist_ind[2]
 
-par(mfrow = c(2,4))
-plot(sub_full[, diff_idx1], sub_full[, diff_idx2], asp = T, pch = 16,
-     col = cluster_labels,
-     xlab = paste0(colnames(sub_dat)[diff_idx1], ", (", diff_idx1, ")"),
-     ylab = paste0(colnames(sub_dat)[diff_idx2], ", (", diff_idx2, ")"),  
-     main = paste0("Correlation of ",
-                   round(dcor(as.numeric(sub_full[, diff_idx1]),
-                              as.numeric(sub_full[, diff_idx2])), 3)))
-for (i in 1:length(cell_labels)){
-  sub_dat <- subset_data[[i]]
-  plot(sub_dat[,diff_idx1], sub_dat[,diff_idx2], asp = T,
-      pch = 16, xlab = paste0(colnames(sub_dat)[diff_idx1], ", (", diff_idx1, ")"),
-      ylab = paste0(colnames(sub_dat)[diff_idx2], ", (", diff_idx2, ")"), 
-      main = paste0("Correlation of ",
-                    round(dist_array[diff_idx1, diff_idx2, i], 3),
-                    "\nCell_type: ", cell_labels[i]),
-      xlim = c(-1, 2), ylim = c(-1, 3))
+for (i in 1:4){
+  par(mfrow = c(2,4))
+  plot(sub_full[, diff_idx1], sub_full[, diff_idx2], asp = T, pch = 16,
+       col = cluster_labels,
+       xlab = paste0(colnames(sub_dat)[diff_idx1], ", (", diff_idx1, ")"),
+       ylab = paste0(colnames(sub_dat)[diff_idx2], ", (", diff_idx2, ")"),  
+       main = paste0("Correlation of ",
+                     round(dcor(as.numeric(sub_full[, diff_idx1]),
+                                as.numeric(sub_full[, diff_idx2])), 3)))
+  for (j in 1:length(cell_labels)){
+    sub_dat <- subset_data[[j]]
+    plot(sub_dat[,diff_idx1], sub_dat[,diff_idx2], asp = T,
+         pch = 16, col = cell_labels[j],
+         xlab = paste0(colnames(sub_dat)[diff_idx1], ", (", diff_idx1, ")"),
+         ylab = paste0(colnames(sub_dat)[diff_idx2], ", (", diff_idx2, ")"), 
+         main = paste0("Correlation of ",
+                       round(dist_array[diff_idx1, diff_idx2, j], 3),
+                       "\nCell_type: ", cell_labels[j]),
+         xlim = c(-1, 3), ylim = c(-2, 5))
+  }
 }
 ```
 
@@ -640,11 +672,9 @@ for (i in 1:length(cell_labels)){
   subset_hoeff_heatmap <- hoeffd(x = as.matrix(subset_heatmap[[i]]))$D
   
   subset_hoeff_heatmap[upper.tri(subset_hoeff_heatmap, diag = T)] <- NA
-  # Store a heatmap
-  melted_matrix <- melt(subset_hoeff, na.rm = T)
   
   # ggplot to draw a heatmap with the viridis palette
-  hoeff_heatmap[[i]] <- store_heatmap(melted_matrix, "Hoeffding's D",
+  hoeff_heatmap[[i]] <- store_heatmap(subset_hoeff_heatmap, "Hoeffding's D",
                                         cell_labels[i])
 }
 ```
@@ -657,10 +687,11 @@ for (i in 1:length(cell_labels)){
   sub_dat <- subset_data[[i]]
   idx1 <- hoeff_max_pair1[i]; idx2 <- hoeff_max_pair2[i]
   plot(sub_dat[,idx1], sub_dat[,idx2], asp = T,
-      pch = 16, xlab = paste0(colnames(sub_dat)[idx1], ", (", idx1, ")"),
-      ylab = paste0(colnames(sub_dat)[idx2], ", (", idx2, ")"), 
-      main = paste0("Correlation of ", round(hoeff_max[i], 3),
-                    "\nCell_type: ", cell_labels[i]))
+       pch = 16, col = cell_labels[i],
+       xlab = paste0(colnames(sub_dat)[idx1], ", (", idx1, ")"),
+       ylab = paste0(colnames(sub_dat)[idx2], ", (", idx2, ")"), 
+       main = paste0("Correlation of ", round(hoeff_max[i], 3),
+                     "\nCell_type: ", cell_labels[i]))
 }
 ```
 
@@ -672,10 +703,11 @@ for (i in 1:length(cell_labels)){
   sub_dat <- subset_data[[i]]
   idx1 <- hoeff_min_pair1[i]; idx2 <- hoeff_min_pair2[i]
   plot(sub_dat[,idx1], sub_dat[,idx2], asp = T,
-      pch = 16, xlab = paste0(colnames(sub_dat)[idx1], ", (", idx1, ")"),
-      ylab = paste0(colnames(sub_dat)[idx2], ", (", idx2, ")"), 
-      main = paste0("Correlation of ", round(hoeff_min[i], 3),
-                    "\nCell_type: ", cell_labels[i]))
+       pch = 16, col = cell_labels[i],
+       xlab = paste0(colnames(sub_dat)[idx1], ", (", idx1, ")"),
+       ylab = paste0(colnames(sub_dat)[idx2], ", (", idx2, ")"), 
+       main = paste0("Correlation of ", round(hoeff_min[i], 3),
+                     "\nCell_type: ", cell_labels[i]))
 }
 ```
 
@@ -692,23 +724,26 @@ diff_hoeff_ind <- which(diff_hoeff == max(diff_hoeff, na.rm = T),
 
 diff_idx1 <- diff_hoeff_ind[1]; diff_idx2 <- diff_hoeff_ind[2]
 
-par(mfrow = c(2,4))
-plot(sub_full[, diff_idx1], sub_full[, diff_idx2], asp = T, pch = 16,
-     col = cluster_labels,
-     xlab = paste0(colnames(sub_dat)[diff_idx1], ", (", diff_idx1, ")"),
-     ylab = paste0(colnames(sub_dat)[diff_idx2], ", (", diff_idx2, ")"),  
-     main = paste0("Correlation of ",
-                   round(hoeffd(sub_full[, diff_idx1],
-                             sub_full[, diff_idx2])$D, 3)))
-for (i in 1:length(cell_labels)){
-  sub_dat <- subset_data[[i]]
-  plot(sub_dat[,diff_idx1], sub_dat[,diff_idx2], asp = T,
-      pch = 16, xlab = paste0(colnames(sub_dat)[diff_idx1], ", (", diff_idx1, ")"),
-      ylab = paste0(colnames(sub_dat)[diff_idx2], ", (", diff_idx2, ")"), 
-      main = paste0("Correlation of ",
-                    round(hoeff_array[diff_idx1, diff_idx2, i], 3),
-                    "\nCell_type: ", cell_labels[i]),
-      xlim = c(-1, 3), ylim = c(-2, 4))
+for (i in 1:4){
+  par(mfrow = c(2,4))
+  plot(sub_full[, diff_idx1], sub_full[, diff_idx2], asp = T, pch = 16,
+       col = cluster_labels,
+       xlab = paste0(colnames(sub_dat)[diff_idx1], ", (", diff_idx1, ")"),
+       ylab = paste0(colnames(sub_dat)[diff_idx2], ", (", diff_idx2, ")"),  
+       main = paste0("Correlation of ",
+                     round(hoeffd(sub_full[, diff_idx1],
+                               sub_full[, diff_idx2])$D, 3)))
+  for (j in 1:length(cell_labels)){
+    sub_dat <- subset_data[[j]]
+    plot(sub_dat[,diff_idx1], sub_dat[,diff_idx2], asp = T,
+         pch = 16, col = cell_labels[j],
+         xlab = paste0(colnames(sub_dat)[diff_idx1], ", (", diff_idx1, ")"),
+         ylab = paste0(colnames(sub_dat)[diff_idx2], ", (", diff_idx2, ")"), 
+         main = paste0("Correlation of ",
+                       round(hoeff_array[diff_idx1, diff_idx2, i], 3),
+                       "\nCell_type: ", cell_labels[i]),
+         xlim = c(-1, 3), ylim = c(-2, 4))
+  }
 }
 ```
 
@@ -787,11 +822,8 @@ for (i in 1:length(cell_labels)){
     }
   }
   
-  # Store a heatmap
-  melted_matrix <- melt(subset_MI_heatmap, na.rm = T)
-  
   # ggplot to draw a heatmap with the viridis palette
-  MI_heatmap[[i]] <- store_heatmap(melted_matrix, "MI",
+  MI_heatmap[[i]] <- store_heatmap(subset_MI_heatmap, "MI",
                                         cell_labels[i])
 }
 ```
@@ -804,9 +836,9 @@ for (i in 1:length(cell_labels)){
   sub_dat <- subset_data[[i]]
   idx1 <- MI_max_pair1[i]; idx2 <- MI_max_pair2[i]
   plot(sub_dat[,idx1], sub_dat[,idx2], asp = T,
-      pch = 16, xlab = paste0(colnames(sub_dat)[idx1], ", (", idx1, ")"),
-      ylab = paste0(colnames(sub_dat)[idx2], ", (", idx2, ")"), 
-      main = paste0("Correlation of ", round(MI_max[i], 3),
+       pch = 16, xlab = paste0(colnames(sub_dat)[idx1], ", (", idx1, ")"),
+       ylab = paste0(colnames(sub_dat)[idx2], ", (", idx2, ")"), 
+       main = paste0("Correlation of ", round(MI_max[i], 3),
                     "\nCell_type: ", cell_labels[i]))
 }
 ```
@@ -845,10 +877,10 @@ plot(sub_full[, diff_idx1], sub_full[, diff_idx2], asp = T, pch = 16,
      xlab = paste0(colnames(sub_dat)[diff_idx1], ", (", diff_idx1, ")"),
      ylab = paste0(colnames(sub_dat)[diff_idx2], ", (", diff_idx2, ")"),  
      main = paste0("Correlation of ",
-                   round(discretize2d(as.matrix(sub_full[, diff_idx1]),
+                   round(mi.empirical(discretize2d(as.matrix(sub_full[, diff_idx1]),
                                    as.matrix(sub_full[, diff_idx2]),
                                    numBins1 = 20,
-                                   numBins2 = 20), 3)))
+                                   numBins2 = 20)), 3)))
 
 for (i in 1:length(cell_labels)){
   sub_dat <- subset_data[[i]]
@@ -858,7 +890,7 @@ for (i in 1:length(cell_labels)){
       main = paste0("Correlation of ",
                     round(MI_array[diff_idx1, diff_idx2, i], 3),
                     "\nCell_type: ", cell_labels[i]),
-      xlim = c(-1, 3), ylim = c(-2, 4))
+      xlim = c(-1, 3), ylim = c(-2, 6))
 }
 ```
 
@@ -915,11 +947,9 @@ for (i in 1:length(cell_labels)){
   
   subset_MIC_heatmap <- mine(subset_heatmap[[i]])$MIC
   subset_MIC_heatmap[upper.tri(subset_MIC_heatmap, diag = T)] <- NA
-  # Store a heatmap
-  melted_matrix <- melt(subset_MIC_heatmap, na.rm = T)
   
   # ggplot to draw a heatmap with the viridis palette
-  MIC_heatmap[[i]] <- store_heatmap(melted_matrix, "MIC",
+  MIC_heatmap[[i]] <- store_heatmap(subset_MIC_heatmap, "MIC",
                                         cell_labels[i])
 }
 ```
@@ -1057,11 +1087,8 @@ for (i in 1:length(cell_labels)){
     }
   }
   
-  # Store a heatmap
-  melted_matrix <- melt(subset_XI_heatmap, na.rm = T)
-  
   # ggplot to draw a heatmap with the viridis palette
-  XI_heatmap[[i]] <- store_heatmap(melted_matrix, "XI",
+  XI_heatmap[[i]] <- store_heatmap(subset_XI_heatmap, "XI",
                                         cell_labels[i])
 }
 ```
@@ -1135,16 +1162,283 @@ for (i in 1:length(cell_labels)){
 marrangeGrob(XI_heatmap, nrow = 3, ncol = 3)
 ```
 
+## 9. Hilbert Schmidt Independence Criterion (HSIC)
+
+```{r, warning=FALSE}
+library(dHSIC)
+
+HSIC_median <- c()
+HSIC_array <- array(NA, dim = c(col, col, cell_num))
+
+HSIC_max <- c()
+HSIC_max_pair1 <- c()
+HSIC_max_pair2 <- c()
+
+HSIC_min <- c()
+HSIC_min_pair1 <- c()
+HSIC_min_pair2 <- c()
+
+HSIC_heatmap <- list()
+
+for (i in 1:length(cell_labels)){
+  sub_dat <- subset_data[[i]]
+  subset_HSIC <- matrix(nrow = ncol(sub_dat),
+                      ncol = ncol(sub_dat))
+
+  for (j in 2:ncol(sub_dat)){
+    for (k in 1:(j-1)){
+      subset_HSIC[j,k] <- dhsic(as.numeric(sub_dat[, j]),
+                                as.numeric(sub_dat[, k]))$dHSIC
+    }
+  }
+  
+  HSIC_array[, , i] <- subset_HSIC
+  
+  HSIC_median <- c(HSIC_median, median(subset_HSIC, na.rm = T))
+  
+  HSIC_vec <- sort(abs(subset_HSIC), decreasing = T)
+  
+  max_idx <- which(abs(subset_HSIC) == HSIC_vec[1], arr.ind = T)
+  idx1 <- max_idx[1]; idx2 <- max_idx[1,2]
+  
+  HSIC_max_pair1 <- c(HSIC_max_pair1, idx1)
+  HSIC_max_pair2 <- c(HSIC_max_pair2, idx2)
+  
+  HSIC_max <- c(HSIC_max, subset_HSIC[idx1, idx2])
+  
+  min_idx <- which(abs(subset_HSIC) == rev(HSIC_vec)[1], arr.ind = T)
+  idx1 <- min_idx[1]; idx2 <- min_idx[1,2]
+  
+  HSIC_min_pair1 <- c(HSIC_min_pair1, idx1)
+  HSIC_min_pair2 <- c(HSIC_min_pair2, idx2)
+  
+  HSIC_min <- c(HSIC_min, subset_HSIC[idx1, idx2])
+  
+  sub_heat <- subset_heatmap[[i]]
+  
+  subset_HSIC_heatmap <- matrix(nrow = ncol(sub_heat),
+                      ncol = ncol(sub_heat))
+
+  for (j in 2:ncol(sub_heat)){
+    for (k in 1:(j-1)){
+      subset_HSIC_heatmap[j,k] <- dhsic(as.numeric(sub_heat[, j]),
+                                        as.numeric(sub_heat[, k]))$dHSIC
+    }
+  }
+
+  # ggplot to draw a heatmap with the viridis palette
+  HSIC_heatmap[[i]] <- store_heatmap(subset_HSIC_heatmap, "HSIC",
+                                        cell_labels[i])
+}
+```
+
+### The pairs with highest HSIC by cell type. (Highly correlated)
+
+```{r}
+par(mfrow = c(2,4))
+for (i in 1:length(cell_labels)){
+  sub_dat <- subset_data[[i]]
+  idx1 <- HSIC_max_pair1[i]; idx2 <- HSIC_max_pair2[i]
+  plot(sub_dat[,idx1], sub_dat[,idx2], asp = T,
+      pch = 16, xlab = paste0(colnames(sub_dat)[idx1], ", (", idx1, ")"),
+      ylab = paste0(colnames(sub_dat)[idx2], ", (", idx2, ")"), 
+      main = paste0("Correlation of ", round(HSIC_max[i], 3),
+                    "\nCell_type: ", cell_labels[i]))
+}
+```
+
+### The pairs with lowest HSIC by cell type. (Seemingly independent)
+
+```{r}
+par(mfrow = c(2,4))
+for (i in 1:length(cell_labels)){
+  sub_dat <- subset_data[[i]]
+  idx1 <- HSIC_min_pair1[i]; idx2 <- HSIC_min_pair2[i]
+  plot(sub_dat[,idx1], sub_dat[,idx2], asp = T,
+      pch = 16, xlab = paste0(colnames(sub_dat)[idx1], ", (", idx1, ")"),
+      ylab = paste0(colnames(sub_dat)[idx2], ", (", idx2, ")"), 
+      main = paste0("Correlation of ", round(HSIC_min[i], 3),
+                    "\nCell_type: ", cell_labels[i]))
+}
+```
+
+### HSIC of the gene pair which has the the biggest difference by cell type
+
+```{r}
+library(dHSIC)
+
+diff_HSIC <- apply(HSIC_array, MARGIN = c(1,2),
+                      FUN = function(x) {diff(range(x))})
+
+diff_HSIC_ind <- which(diff_HSIC == max(diff_HSIC, na.rm = T),
+                         arr.ind = T)
+
+diff_idx1 <- diff_HSIC_ind[1]; diff_idx2 <- diff_HSIC_ind[2]
+
+par(mfrow = c(2,4))
+plot(sub_full[, diff_idx1], sub_full[, diff_idx2], asp = T, pch = 16,
+     col = cluster_labels,
+     xlab = paste0(colnames(sub_dat)[diff_idx1], ", (", diff_idx1, ")"),
+     ylab = paste0(colnames(sub_dat)[diff_idx2], ", (", diff_idx2, ")"),  
+     main = paste0("Correlation of ",
+                   round(dhsic(as.numeric(sub_full[, diff_idx1]),
+                                    as.numeric(sub_full[, diff_idx2]))$dHSIC, 3)))
+for (i in 1:length(cell_labels)){
+  sub_dat <- subset_data[[i]]
+  plot(sub_dat[,diff_idx1], sub_dat[,diff_idx2], asp = T,
+      pch = 16, xlab = paste0(colnames(sub_dat)[diff_idx1], ", (", diff_idx1, ")"),
+      ylab = paste0(colnames(sub_dat)[diff_idx2], ", (", diff_idx2, ")"), 
+      main = paste0("Correlation of ",
+                    round(HSIC_array[diff_idx1, diff_idx2, i], 3),
+                    "\nCell_type: ", cell_labels[i]),
+      xlim = c(-1, 4), ylim = c(-1, 4))
+}
+```
+
+### Heatmap of HSIC by cell type
+
+```{r}
+marrangeGrob(HSIC_heatmap, nrow = 3, ncol = 3)
+```
+
+## 10. Blomqvist's Beta
+
+```{r, warning=FALSE}
+library(VineCopula)
+library(reshape2)
+
+Blomqvist_median <- c()
+Blomqvist_array <- array(NA, dim = c(col, col, cell_num))
+
+Blomqvist_max <- c()
+Blomqvist_max_pair1 <- c()
+Blomqvist_max_pair2 <- c()
+
+Blomqvist_min <- c()
+Blomqvist_min_pair1 <- c()
+Blomqvist_min_pair2 <- c()
+
+Blomqvist_heatmap <- list()
+
+for (i in 1:length(cell_labels)){
+  sub_dat <- subset_data[[i]]
+  
+  subset_Blomqvist <- BetaMatrix(sub_dat)
+  subset_Blomqvist[upper.tri(subset_Blomqvist, diag = T)]
+  
+  Blomqvist_array[, , i] <- subset_Blomqvist
+  
+  Blomqvist_median <- c(Blomqvist_median, median(subset_Blomqvist, na.rm = T))
+  
+  Blomqvist_vec <- sort(abs(subset_Blomqvist), decreasing = T)
+  
+  max_idx <- which(abs(subset_Blomqvist) == Blomqvist_vec[1], arr.ind = T)
+  idx1 <- max_idx[1]; idx2 <- max_idx[1,2]
+  
+  Blomqvist_max_pair1 <- c(Blomqvist_max_pair1, idx1)
+  Blomqvist_max_pair2 <- c(Blomqvist_max_pair2, idx2)
+  
+  Blomqvist_max <- c(Blomqvist_max, subset_Blomqvist[idx1, idx2])
+  
+  min_idx <- which(abs(subset_Blomqvist) == rev(Blomqvist_vec)[1], arr.ind = T)
+  idx1 <- min_idx[1]; idx2 <- min_idx[1,2]
+  
+  Blomqvist_min_pair1 <- c(Blomqvist_min_pair1, idx1)
+  Blomqvist_min_pair2 <- c(Blomqvist_min_pair2, idx2)
+  
+  Blomqvist_min <- c(Blomqvist_min, subset_Blomqvist[idx1, idx2])
+  
+  sub_heat <- subset_heatmap[[i]]
+  
+  subset_Blomqvist_heatmap <- BetaMatrix(sub_heat)
+  subset_Blomqvist_heatmap[upper.tri(subset_Blomqvist_heatmap, diag = T)] <- NA
+  
+  # ggplot to draw a heatmap with the viridis palette
+  Blomqvist_heatmap[[i]] <- store_heatmap(subset_Blomqvist_heatmap, "Beta",
+                                          cell_labels[i])
+}
+```
+
+### The pairs with highest Blomqvist's Beta by cell type. (Highly correlated)
+
+```{r}
+par(mfrow = c(2,4))
+for (i in 1:length(cell_labels)){
+  sub_dat <- subset_data[[i]]
+  idx1 <- Blomqvist_max_pair1[i]; idx2 <- Blomqvist_max_pair2[i]
+  plot(sub_dat[,idx1], sub_dat[,idx2], asp = T,
+      pch = 16, xlab = paste0(colnames(sub_dat)[idx1], ", (", idx1, ")"),
+      ylab = paste0(colnames(sub_dat)[idx2], ", (", idx2, ")"), 
+      main = paste0("Correlation of ", round(Blomqvist_max[i], 3),
+                    "\nCell_type: ", cell_labels[i]))
+}
+```
+
+### The pairs with lowest Blomqvist's Beta by cell type. (Seemingly independent)
+
+```{r}
+par(mfrow = c(2,4))
+for (i in 1:length(cell_labels)){
+  sub_dat <- subset_data[[i]]
+  idx1 <- Blomqvist_min_pair1[i]; idx2 <- Blomqvist_min_pair2[i]
+  plot(sub_dat[,idx1], sub_dat[,idx2], asp = T,
+      pch = 16, xlab = paste0(colnames(sub_dat)[idx1], ", (", idx1, ")"),
+      ylab = paste0(colnames(sub_dat)[idx2], ", (", idx2, ")"), 
+      main = paste0("Correlation of ", round(Blomqvist_min[i], 3),
+                    "\nCell_type: ", cell_labels[i]))
+}
+```
+
+### Blomqvist's Beta of the gene pair which has the the biggest difference by cell type
+
+```{r}
+library(VineCopula)
+
+diff_Blomqvist <- apply(Blomqvist_array, MARGIN = c(1,2),
+                      FUN = function(x) {diff(range(x))})
+
+diff_Blomqvist_ind <- which(diff_Blomqvist == max(diff_Blomqvist, na.rm = T),
+                         arr.ind = T)
+
+diff_idx1 <- diff_Blomqvist_ind[1]; diff_idx2 <- diff_Blomqvist_ind[2]
+
+par(mfrow = c(2,4))
+plot(sub_full[, diff_idx1], sub_full[, diff_idx2], asp = T, pch = 16,
+     col = cluster_labels,
+     xlab = paste0(colnames(sub_dat)[diff_idx1], ", (", diff_idx1, ")"),
+     ylab = paste0(colnames(sub_dat)[diff_idx2], ", (", diff_idx2, ")"),  
+     main = paste0("Correlation of ",
+                   round(BetaMatrix(cbind(sub_full[, diff_idx1],
+                                          sub_full[, diff_idx2]))[1,1], 3)))
+for (i in 1:length(cell_labels)){
+  sub_dat <- subset_data[[i]]
+  plot(sub_dat[,diff_idx1], sub_dat[,diff_idx2], asp = T,
+      pch = 16, xlab = paste0(colnames(sub_dat)[diff_idx1], ", (", diff_idx1, ")"),
+      ylab = paste0(colnames(sub_dat)[diff_idx2], ", (", diff_idx2, ")"), 
+      main = paste0("Correlation of ",
+                    round(Blomqvist_array[diff_idx1, diff_idx2, i], 3),
+                    "\nCell_type: ", cell_labels[i]),
+      xlim = c(-1, 2.5), ylim = c(-1, 3))
+}
+```
+
+### Heatmap of Blomqvist's Beta by cell type
+
+```{r}
+marrangeGrob(Blomqvist_heatmap, nrow = 3, ncol = 3)
+```
+
 ## Median of correlation values by cell type and different measures.
 
 ```{r}
 median_df <- rbind(pearson_median, spearman_median,
                    kendall_median, dist_median,
                    hoeff_median, MI_median,
-                   MIC_median, XI_median)
+                   MIC_median, XI_median,
+                   HSIC_median, Blomqvist_median)
 rownames(median_df) <- c("Pearson", "Spearman", "Kendall",
                          "Dist_Cor", "Hoeff_Dist", "Mutual_Info",
-                         "MIC", "XI")
+                         "MIC", "XI", "HSIC", "Beta")
 colnames(median_df) <- cell_labels
 
 knitr::kable(median_df)

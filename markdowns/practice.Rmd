@@ -579,7 +579,7 @@ for(i in 1:4){
 }
 ```
 
-```{r, echo=FALSE, fig.cap="Pearson_Heatmap"}
+```{r, echo=FALSE, fig.cap="HSIC_Heatmap"}
 knitr::include_graphics("heatmaps/Heatmap_HSICCorr.jpeg")
 ```
 
@@ -626,7 +626,7 @@ for(i in 1:4){
 }
 ```
 
-```{r, echo=FALSE, fig.cap="Pearson_Heatmap"}
+```{r, echo=FALSE, fig.cap="Beta_Heatmap"}
 knitr::include_graphics("heatmaps/Heatmap_BetaCorr.jpeg")
 ```
 
@@ -685,7 +685,7 @@ cor_contrast_ind10 <- which(cor_contrast10, arr.ind = T)
 nrow(cor_contrast_ind10)
 
 # low MIC and high XI
-cor_contrast11 <- (abs(cor_MIC_mat) < 0.4) & (abs(cor_XI_mat) > 0.6)
+cor_contrast11 <- (abs(cor_MIC_mat) < 0.45) & (abs(cor_XI_mat) > 0.55)
 cor_contrast_ind11 <- which(cor_contrast11, arr.ind = T)
 nrow(cor_contrast_ind11)
 
@@ -700,7 +700,7 @@ cor_contrast_ind13 <- which(cor_contrast13, arr.ind = T)
 nrow(cor_contrast_ind13)
 
 # high spearman and low distance correlation (monotone vs non-linearity)
-cor_contrast14 <- (abs(cor_spearman_mat) > 0.6) & (abs(cor_dist_mat) < 0.4)
+cor_contrast14 <- (abs(cor_spearman_mat) > 0.7) & (abs(cor_dist_mat) < 0.3)
 cor_contrast_ind14 <- which(cor_contrast14, arr.ind = T)
 nrow(cor_contrast_ind14)
 
@@ -710,19 +710,29 @@ cor_contrast_ind15 <- which(cor_contrast15, arr.ind = T)
 nrow(cor_contrast_ind15)
 
 # high spearman and low MIC (monotone vs Information)
-cor_contrast16 <- (abs(cor_spearman_mat) > 0.65) & (abs(cor_MIC_mat) < 0.35)
+cor_contrast16 <- (abs(cor_spearman_mat) > 0.60) & (abs(cor_MIC_mat) < 0.35)
 cor_contrast_ind16 <- which(cor_contrast16, arr.ind = T)
 nrow(cor_contrast_ind16)
 
 # low distance correlation and high MIC (non-linearity vs Information)
-cor_contrast17 <- (abs(cor_dist_mat) < 0.4) & (abs(cor_MIC_mat) > 0.6)
+cor_contrast17 <- (abs(cor_dist_mat) < 0.25) & (abs(cor_MIC_mat) > 0.75)
 cor_contrast_ind17 <- which(cor_contrast17, arr.ind = T)
 nrow(cor_contrast_ind17)
 
 # high distance correlation and low MIC (non-linearity vs Information)
-cor_contrast18 <- (abs(cor_dist_mat) > 0.7) & (abs(cor_MIC_mat) < 0.3)
+cor_contrast18 <- (abs(cor_dist_mat) > 0.7) & (abs(cor_MIC_mat) < 0.4)
 cor_contrast_ind18 <- which(cor_contrast18, arr.ind = T)
 nrow(cor_contrast_ind18)
+
+# low pearson and high Blomqvist's Beta (linearity vs monotone)
+cor_contrast19 <- (abs(cor_pearson_mat) < 0.02) & (abs(cor_blomqvist_mat) > 0.98)
+cor_contrast_ind19 <- which(cor_contrast19, arr.ind = T)
+nrow(cor_contrast_ind19)
+
+# high pearson and low Blomqvist's Beta (linearity vs monotone)
+cor_contrast20 <- (abs(cor_pearson_mat) > 0.85) & (abs(cor_blomqvist_mat) < 0.15)
+cor_contrast_ind20 <- which(cor_contrast20, arr.ind = T)
+nrow(cor_contrast_ind20)
 ```
 
 ## Visualization of low pearson (<0.30) and high spearman (>0.7) (linearity vs monotone)
@@ -897,7 +907,7 @@ for (i in 1:5){
 }
 ```
 
-## Visualization of high Spearman (> 0.60) and low distance correlation (< 0.40) (monotone vs non-linearity)
+## Visualization of high Spearman (> 0.60) and low distance correlation (< 0.35) (monotone vs non-linearity)
 
 ```{r}
 par(mfrow = c(2,5))
@@ -913,7 +923,7 @@ for (i in 1:10){
 }
 ```
 
-## Visualization of low Spearman (< 0.2) and high MIC (> 0.80) (monotone vs information)
+## Visualization of low Spearman (< 0.25) and high MIC (> 0.75) (monotone vs information)
 
 ```{r}
 par(mfrow = c(2,5))
@@ -929,7 +939,7 @@ for (i in 1:10){
 }
 ```
 
-## Visualization of low distance correlation (< 0.4) and high MIC (> 0.6) (non-linearity vs information)
+## Visualization of low distance correlation (< 0.4) and high MIC (> 0.7) (non-linearity vs information)
 
 ```{r}
 par(mfrow = c(2,5))
@@ -945,6 +955,38 @@ for (i in 1:10){
 }
 ```
 
+## Visualization of low pearson (< 0.02) and high Blomqvist's Beta (> 0.98) (linearity vs monotone)
+
+```{r}
+par(mfrow = c(2,5))
+
+for (i in 1:10){
+   index1 <- cor_contrast_ind19[i, 1]; index2 <- cor_contrast_ind19[i, 2]
+   plot(sub_dat[,index1], sub_dat[,index2], col = sub_cluster_labels, asp = T,
+      pch = 16, xlab = paste0(colnames(sub_dat)[index1], ", (", index1, ")"),
+      ylab = paste0(colnames(sub_dat)[index2], ", (", index2, ")"), 
+      main = paste(paste0("Pearson of ", round(cor_pearson_mat[index1, index2], 3)),
+                   "\n",
+                   paste0("Beta of ", round(cor_blomqvist_mat[index1, index2], 3))))
+}
+```
+
+## Visualization of high pearson correlation (> 0.85) and low Blomqvist's Beta (< 0.15) (linearity vs monotone)
+
+```{r}
+par(mfrow = c(2,5))
+
+for (i in 1:10){
+   index1 <- cor_contrast_ind20[i, 1]; index2 <- cor_contrast_ind20[i, 2]
+   plot(sub_dat[,index1], sub_dat[,index2], col = sub_cluster_labels, asp = T,
+      pch = 16, xlab = paste0(colnames(sub_dat)[index1], ", (", index1, ")"),
+      ylab = paste0(colnames(sub_dat)[index2], ", (", index2, ")"), 
+      main = paste(paste0("Pearson of ", round(cor_pearson_mat[index1, index2], 3)),
+                   "\n",
+                   paste0("Beta of ", round(cor_blomqvist_mat[index1, index2], 3))))
+}
+```
+
 ## Extract meaningful indices for celltype_practice
 
 ```{r}
@@ -953,7 +995,8 @@ indices <- c(cor_contrast_ind1, cor_contrast_ind2, cor_contrast_ind3,
              cor_contrast_ind7, cor_contrast_ind8, cor_contrast_ind9,
              cor_contrast_ind10, cor_contrast_ind11, cor_contrast_ind12,
              cor_contrast_ind13, cor_contrast_ind14, cor_contrast_ind15,
-             cor_contrast_ind16, cor_contrast_ind17, cor_contrast_ind18)
+             cor_contrast_ind16, cor_contrast_ind17, cor_contrast_ind18,
+             cor_contrast_ind19, cor_contrast_ind20)
 indices <- unique(indices)
 
 #save(indices, file = "meaningful_indices.RData")
@@ -963,7 +1006,7 @@ indices <- unique(indices)
 
 ```{r}
 # save(cor_pearson_mat,
-#     cor_spearman_mat,
+#      cor_spearman_mat,
 #     faster_kendall_mat,
 #     cor_dist_mat,
 #     cor_hoeffd_mat,
