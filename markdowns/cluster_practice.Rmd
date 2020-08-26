@@ -146,18 +146,21 @@ for (i in 2:cell_num){
     set.seed(10)
     new_label <- sample(1:2, size = nrow(sub_dat2), replace = T)
     
+    real_ss <- compute_ss(sub_dat2, cell_type2)
+    random_ss <- compute_ss(sub_dat2, new_label)
+    
     plot(sub_dat2[,1], sub_dat2[,2], cex = 0.7,
          asp = T, col = as.numeric(as.factor(cell_type2)), pch = 16,
          xlab = paste0(colnames(dat)[ind1], ", (", ind1, ")"),
          ylab = paste0(colnames(dat)[ind2], ", (", ind2, ")"),
-         main = paste0("SS: ", compute_ss(sub_dat2, cell_type2),
+         main = paste0("SS: ", real_ss,
                        "\n", cell_label[i], " and\n", cell_label[j]))
     plot(sub_dat2[,1], sub_dat2[,2], 
          asp = T, col = new_label, pch = 16, cex = 0.7,
          xlab = paste0(colnames(dat)[ind1], ", (", ind1, ")"),
          ylab = paste0(colnames(dat)[ind2], ", (", ind2, ")"),
-         main = paste0("SS: ", compute_ss(sub_dat2, cell_type2),
-                       "\nwith Randomly Assignment"))
+         main = paste0("SS: ", random_ss, "\nwith Randomly Assignment",
+                       "\nDifference : ", abs(random_ss - real_ss)))
   }
 }
 ```
