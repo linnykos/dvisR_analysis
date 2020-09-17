@@ -1,0 +1,264 @@
+---
+title: "cluster_practice"
+author: "Taewan Kim"
+date: "8/18/2020"
+output: html_document
+---
+
+# Data Import
+
+## Import dataset
+
+```{r}
+# Import Ziesel dataset
+dat <- read.csv("~/Box Sync/Zeisel_preprocessed.csv", row.names = 1)
+cell_type <- read.table("~/Box Sync/Zeisel_cell_info.txt", sep = "\t", header = 1)
+
+# Get the labels for each cell
+cluster_labels <- as.numeric(as.factor(cell_type$level1class))
+cell_label <- unique(cell_type$level1class)
+```
+
+```{r}
+# Randomly select a pair from the columns
+set.seed(10)
+rand_ind <- sample(seq(1, ncol(dat), by = 1), size = 2, replace = F)
+
+# Assign variables for the later
+col <- ncol(dat)
+ind1 <- rand_ind[1]; ind2 <- rand_ind[2]
+sub_dat <- dat[, c(ind1, ind2)]
+cell_num <- length(unique(cluster_labels))
+
+# the plot that the picked pair looks like
+plot(dat[,ind1], dat[,ind2], 
+     col = cluster_labels, asp = T, pch = 16,
+     xlab = paste0(colnames(dat)[ind1], ", (", ind1, ")"),
+     ylab = paste0(colnames(dat)[ind2], ", (", ind2, ")"), )
+```
+
+# Clustering Method (7c2 Combinations)
+
+## Method 1 : P-values in Two-sample Tests
+
+```{r}
+t_matrix <- matrix(data = NA, nrow = cell_num, ncol = cell_num)
+
+# Conduct the t.test for 7C2 times 
+for (i in 2:cell_num){
+  for (j in 1:(i-1)){
+    if (i == j) {next}
+    x <- sub_dat[which(cluster_labels == i), ]
+    y <- sub_dat[which(cluster_labels == j), ]
+    
+    ttest_xy <- stats::t.test(x, y, alternative = "two.sided")
+    t_matrix[i,j] <- ttest_xy$p.value
+  }
+}
+
+```
+
+```{r}
+par(mfrow = c(3,4))
+for (i in 2:cell_num){
+  for (j in 1:(i-1)){
+    tmp <- which(cluster_labels %in% c(i,j))
+    sub_dat2 <- sub_dat[tmp, ]
+    x <- sub_dat2[, 1]
+    y <- sub_dat2[, 2]
+    plot(x, y, col = cluster_labels[tmp], asp = T, cex = 0.7, pch = 16,
+         xlab = paste0(colnames(dat)[ind1], ", (", ind1, ")"),
+         ylab = paste0(colnames(dat)[ind2], ", (", ind2, ")"),
+         main = paste0("T.test p-value: ", round(t_matrix[i, j], 5),
+                       "\n", cell_label[i], " and\n", cell_label[j]))
+  }
+}
+```
+
+## Method 2 : Classification Error (logistic regression)
+
+```{r}
+# Calculate classification errors of 7c2 pairs
+
+accuracy <- matrix(NA, nrow = cell_num, ncol = cell_num)
+sub_dat <- dat[, c(ind1, ind2)]
+for (i in 2:cell_num){
+  for (j in 1:(i-1)){
+    tmp <- which(cluster_labels %in% c(i,j))
+    cell_type2 <- cluster_labels[tmp]
+    sub_dat2 <- sub_dat[tmp, ]
+    dat_df <- data.frame(x1 = sub_dat2[,1], x2 = sub_dat2[,2],
+                         label = as.factor(cell_type2))
+    log_res <- stats::glm(label ~ x1 + x2 + 1,
+                          data = dat_df, family = "binomial")
+    predictions <- (stats::predict(log_res,
+                                   newdata = dat_df, type = "response") > 0.5)
+    conf_table <- table(cell_type2, predictions)
+    accuracy[i, j] <- sum(diag(conf_table)) / sum(conf_table)
+  }
+}
+```
+
+```{r}
+par(mfrow = c(3,4))
+for (i in 2:cell_num){
+  for (j in 1:(i-1)){
+    tmp <- which(cluster_labels %in% c(i,j))
+    sub_dat2 <- sub_dat[tmp, ]
+    x <- sub_dat2[, 1]
+    y <- sub_dat2[, 2]
+    plot(x, y, col = cluster_labels[tmp], asp = T, cex = 0.7, pch = 16,
+         xlab = paste0(colnames(dat)[ind1], ", (", ind1, ")"),
+         ylab = paste0(colnames(dat)[ind2], ", (", ind2, ")"),
+         main = paste0("Accuracy: ", round(accuracy[i, j], 3),
+                       "\n", cell_label[i], " and\n", cell_label[j]))
+  }
+}
+```
+
+## Method 3 : Clustering Objective Compared to Random Assignment (K-means)
+
+```{r}
+.l2norm <- function(x){sqrt(sum(x^2))}
+
+compute_ss <- function(dat, cluster_label){
+ stopifnot(nrow(dat) == length(cluster_label))
+ 
+ uniq_val <- unique(cluster_label)
+ 
+ mean_list <- lapply(uniq_val, function(x){
+  idx <- which(cluster_label == x)
+  mean_vec <- colMeans(dat[idx,])
+ })
+ 
+ sum(sapply(1:nrow(dat), function(i){
+  .l2norm(dat[i,] - mean_list[[which(uniq_val == cluster_label[i])]])
+ }))
+}
+
+par(mfrow = c(3,2))
+for (i in 2:cell_num){
+  for (j in 1:(i-1)){
+    tmp <- which(cluster_labels %in% c(i,j))
+    cell_type2 <- cluster_labels[tmp]
+    sub_dat2 <- sub_dat[tmp, ]
+    
+    set.seed(10)
+    new_label <- sample(1:2, size = nrow(sub_dat2), replace = T)
+    
+    real_ss <- compute_ss(sub_dat2, cell_type2)
+    random_ss <- compute_ss(sub_dat2, new_label)
+    
+    plot(sub_dat2[,1], sub_dat2[,2], cex = 0.7,
+         asp = T, col = as.numeric(as.factor(cell_type2)), pch = 16,
+         xlab = paste0(colnames(dat)[ind1], ", (", ind1, ")"),
+         ylab = paste0(colnames(dat)[ind2], ", (", ind2, ")"),
+         main = paste0("SS: ", real_ss,
+                       "\n", cell_label[i], " and\n", cell_label[j]))
+    plot(sub_dat2[,1], sub_dat2[,2], 
+         asp = T, col = new_label, pch = 16, cex = 0.7,
+         xlab = paste0(colnames(dat)[ind1], ", (", ind1, ")"),
+         ylab = paste0(colnames(dat)[ind2], ", (", ind2, ")"),
+         main = paste0("SS: ", random_ss, "\nwith Randomly Assignment",
+                       "\nDifference : ", abs(random_ss - real_ss)))
+  }
+}
+```
+
+# Clustering Method (1 vs 6 cells)
+
+## Method 1 : P-values in Two-sample Tests
+
+```{r}
+sub_dat <- dat[, c(ind1, ind2)]
+pval_vec <- c()
+
+# Conduct the t.test for 7C2 times 
+for (i in 1:cell_num){
+    x <- sub_dat[which(cluster_labels == i), ]
+    y <- sub_dat[which(cluster_labels != i), ]
+    
+    ttest_xy <- stats::t.test(x, y, alternative = "two.sided")
+    pval_vec <- c(pval_vec, ttest_xy$p.value)
+}
+
+```
+
+```{r}
+par(mfrow = c(2,4))
+for (i in 1:cell_num){
+  x <- sub_dat[which(cluster_labels == i), ]
+  
+  plot(sub_dat, asp = T, cex = 0.7, pch = 16,
+       xlab = paste0(colnames(dat)[ind1], ", (", ind1, ")"),
+       ylab = paste0(colnames(dat)[ind2], ", (", ind2, ")"),
+       main = paste0(cell_label[i], "\nand the rest\n",
+                     "T.test p-value: ", round(pval_vec[i], 5)))
+  points(x, col = cluster_labels[i], pch = 16, asp = T)
+}
+```
+
+## Method 2 : Classification Error (logistic regression)
+
+```{r}
+# Calculate classification errors 
+accuracy_vec <- c()
+
+for (i in 1:cell_num){
+    binary_cell <- ifelse(cluster_labels == i, 1, 2)
+    dat_df <- data.frame(x1 = sub_dat[,1], x2 = sub_dat[,2],
+                         label = as.factor(binary_cell))
+    log_res <- stats::glm(label ~ x1 + x2 + 1,
+                          data = dat_df, family = "binomial")
+    predictions <- (stats::predict(log_res,
+                                   newdata = dat_df, type = "response") > 0.5)
+    conf_table <- table(binary_cell, predictions)
+    accuracy_vec <- c(accuracy_vec,
+                  sum(diag(conf_table)) / sum(conf_table))
+}
+```
+
+```{r}
+par(mfrow = c(2,4))
+for (i in 1:cell_num){
+  x <- sub_dat[which(cluster_labels == i), ]
+  plot(sub_dat, asp = T, cex = 0.7, pch = 16,
+       xlab = paste0(colnames(dat)[ind1], ", (", ind1, ")"),
+       ylab = paste0(colnames(dat)[ind2], ", (", ind2, ")"),
+       main = paste0(cell_label[i], " and the rest\n",
+                     "Accuracy: ", round(accuracy_vec[i], 3)))
+  points(x, col = cluster_labels[i], pch = 16, asp = T)
+}
+```
+
+## Method 3 : Clustering Objective Compared to Random Assignment (K-means)
+
+```{r}
+par(mfrow = c(3,2))
+for (i in 1:cell_num){
+  x <- sub_dat[which(cluster_labels == i), ]
+  binary_cell <- ifelse(cluster_labels == i, 1, 2)
+  
+  set.seed(10)
+  new_label <- sample(1:2, size = nrow(sub_dat), replace = T)
+  y <- sub_dat[which(new_label == i), ]
+  
+  real_ss <- compute_ss(sub_dat, binary_cell)
+  random_ss <- compute_ss(sub_dat, new_label)
+  
+  plot(sub_dat[,1], sub_dat[,2], cex = 0.7,
+       asp = T, col = as.numeric(as.factor(binary_cell)), pch = 16,
+       xlab = paste0(colnames(dat)[ind1], ", (", ind1, ")"),
+       ylab = paste0(colnames(dat)[ind2], ", (", ind2, ")"),
+       main = paste0(cell_label[i], " and the rest\n",
+                     "SS: ", real_ss))
+  
+  plot(sub_dat[,1], sub_dat[,2], 
+       asp = T, col = new_label, pch = 16, cex = 0.7,
+       xlab = paste0(colnames(dat)[ind1], ", (", ind1, ")"),
+       ylab = paste0(colnames(dat)[ind2], ", (", ind2, ")"),
+       main = paste0("Randomly Assignment\n", "SS: ", random_ss, 
+                     "\nDifference : ", abs(random_ss - real_ss)))
+}
+```
+
