@@ -7,7 +7,7 @@ sessionInfo()
 
 ## run the following lines for an interactive example
 dat <- read.csv("../../data/Zeisel_preprocessed.csv", row.names = 1)
-dat <- dat[,1:50]
+dat <- dat[,1:30]
 cell_type <- read.table("../../data/Zeisel_cell_info.txt", sep = "\t", header = 1)
 cluster_labels <- as.numeric(as.factor(cell_type$level1class))
 
@@ -22,7 +22,7 @@ res
 head(res$df)
 dvisR_embedding(res, embedding_method = embedding_umap)
 
-par(mfrow = c(0.5, 0.5, 0.5, 0.5))
+par(mar = c(0.5, 0.5, 0.5, 0.5))
 dvisR_heatmap(res)
 dvisR_heatmap(res, unlabeled = T)
 
