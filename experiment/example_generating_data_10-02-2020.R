@@ -54,6 +54,11 @@ generate_data <- function(n, p){
   }
  })
  
+ # shuffle each p/2 dataset row-wise
+ dat_list <- lapply(dat_list, function(dat){
+   dat[order(dat[,1]),]
+ })
+ 
  # concatenate column-wise
  do.call(cbind, dat_list)
 }
@@ -64,7 +69,11 @@ zz <- generate_data(500, 10)
 # 5 out of the 45 pairs of dependency
 # would work for c(1,2), c(3,4), c(5,6), c(7,8), c(9,10)
 plot(zz[,1], zz[,2], asp = T) # of lollipop
-plot(zz[,3], zz[,4], asp = T) # of v
+plot(zz[,3],  zz[,4], asp = T) # of v
 
-# any other pair looks like independent variables
+# any other pair looks like independent variables (if we hadn't shuffled)
 plot(zz[,1], zz[,3], asp = T)
+plot(zz[,5], zz[,7], asp = T)
+plot(zz[,1], zz[,4], asp = T)
+
+plot(zz[,2], zz[,10], asp = T)
