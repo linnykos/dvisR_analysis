@@ -1,0 +1,110 @@
+---
+title: "Corpula_Celltype"
+author: "Taewan Kim"
+date: "1/2/2021"
+output: html_document
+---
+
+# First cell type
+
+```{r}
+p <- 8
+first_n <- 150
+corpula_mean_first <- rep(0, 8) # mu
+cov_mat_first <- matrix(0.1, p, p); diag(cov_mat_first) <- 1; # Sigma
+cov_mat_first[c(3,4), 1] <- 0.7
+cov_mat_first[1, c(3,4)] <- 0.7
+
+norm_first <- MASS::mvrnorm(first_n, corpula_mean_first, cov_mat_first)
+corpula_first <- norm_first
+
+# nonparanormal transform
+for (i in 1:8){
+  corpula_first[,i] <- 1.2 * sign(corpula_first[,i])*abs(corpula_first[,i])^0.5
+}
+
+norm_expr <- MASS::mvrnorm(first_n, corpula_mean_first, Sigma)
+
+
+# this is the gaussian data we need to make nonparanormals
+pairs(norm_first, asp = T, pch = 16,  col = rgb(0.5,0.5,0.5,0.5), lower.panel = NULL)
+
+# this is the nonparanormal 
+pairs(corpula_first, asp = T, pch = 16,  col = rgb(0.5,0.5,0.5,0.5), lower.panel = NULL)
+
+```
+
+# Second cell type
+
+```{r}
+p <- 8
+second_n <- 150
+corpula_mean_second <- rep(0, 8) # mu
+cov_mat_second <- matrix(0.3, p, p); diag(cov_mat_second) <- 1; # Sigma
+cov_mat_second[c(3,4), 1] <- 0.7
+cov_mat_second[1, c(3,4)] <- 0.7
+
+cov_mat_second[5, c(7,8)] <- 0.6
+cov_mat_second[c(7,8), 5] <- 0.6
+
+cov_mat_second[c(2,3), c(6,7)] <- 0.4
+cov_mat_second[c(6,7), c(2,3)] <- 0.4
+
+
+norm_second <- MASS::mvrnorm(second_n, corpula_mean_second, cov_mat_second)
+corpula_second <- norm_second
+
+# nonparanormal transform
+for (i in 1:8){
+  corpula_second[,i] <- 1.2 * sign(corpula_second[,i])*abs(corpula_second[,i])
+}
+
+norm_expr <- MASS::mvrnorm(second_n, corpula_mean_second, Sigma)
+
+
+# this is the gaussian data we need to make nonparanormals
+pairs(norm_second, asp = T, pch = 16,  col = rgb(0.5,0.5,0.5,0.5), lower.panel = NULL)
+
+# this is the nonparanormal 
+pairs(corpula_second, asp = T, pch = 16,  col = rgb(0.5,0.5,0.5,0.5), lower.panel = NULL)
+
+
+A <- matrix(runif(p)*2-1, ncol=p) 
+Sigma <- t(A) %*% A
+diag(Sigma) = 1
+```
+
+# Third cell type
+
+```{r}
+third_n <- 200
+corpula_mean_third <- rep(0, 8) # mu
+cov_mat_third <- matrix(0.8, p, p); diag(cov_mat_third) <- 1; # Sigma
+
+norm_third <- MASS::mvrnorm(third_n, corpula_mean_third, cov_mat_third)
+corpula_third <- norm_third
+
+# nonparanormal transform
+for (i in 1:8){
+  corpula_third[,i] <- 0.4 * sign(corpula_third[,i])*abs(corpula_third[,i])^0.8
+}
+
+norm_expr <- MASS::mvrnorm(third_n, corpula_mean_third, Sigma)
+
+
+# this is the gaussian data we need to make nonparanormals
+pairs(norm_third, asp = T, pch = 16,  col = rgb(0.5,0.5,0.5,0.5), lower.panel = NULL)
+
+# this is the nonparanormal 
+pairs(corpula_third, asp = T, pch = 16,  col = rgb(0.5,0.5,0.5,0.5), lower.panel = NULL)
+```
+
+# Combine the three cell types
+
+```{r}
+gen_dat <- rbind(corpula_first, corpula_second, corpula_third)
+
+dim(gen_dat)
+
+pairs(gen_dat, asp = T, pch = 16,  col = rgb(0.5,0.5,0.5,0.5), lower.panel = NULL)
+```
