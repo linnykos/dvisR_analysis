@@ -5,16 +5,24 @@ date: "1/18/2021"
 output: html_document
 ---
 
-# First cell type
+# 1. Data Generation
+
+## 1-1. First cell type
 
 ```{r}
 p <- 8
 first_n <- 150
 corpula_mean_first <- c(10, 0, 10, 0, 10, 0, 10, 0) # mu
 cov_mat_first <- matrix(0, p, p); 
-diag(cov_mat_first) <- c(20, 5, 20, 5, 20, 5, 20, 5)
+diag(cov_mat_first) <- c(20, 5, 20, 10, 20, 5, 20, 5)
+cov_mat_first[1,5] <- 10; cov_mat_first[5,1] <- 10;
+cov_mat_first[1,7] <- 10; cov_mat_first[7,1] <- 10;
+cov_mat_first[4,5] <- 3; cov_mat_first[5,4] <- 3;
+cov_mat_first[4,7] <- 3; cov_mat_first[7,4] <- 3;
+
 
 norm_first <- MASS::mvrnorm(first_n, corpula_mean_first, cov_mat_first)
+
 corpula_first <- norm_first
 
 # nonparanormal transform
@@ -28,7 +36,7 @@ pairs(corpula_first, asp = T, pch = 16,  col = rgb(0.5,0.5,0.5,0.5), lower.panel
 
 ```
 
-# Second cell type
+## 1-2. Second cell type
 
 ```{r}
 second_n <- 200
@@ -36,8 +44,10 @@ corpula_mean_second <- c(0, 10, 0, 10,
                          0, 10, 0, 10) # mu
 
 cov_mat_second <- matrix(0, p, p)
-diag(cov_mat_second) <- c(5, 20, 5, 20, 5, 20, 5, 20) # Sigma
+diag(cov_mat_second) <- c(5, 20, 5, 10, 5, 20, 5, 20) # Sigma
 
+cov_mat_second[1,5] <- 5; cov_mat_second[5,1] <- 2;
+cov_mat_second[1,7] <- 5; cov_mat_second[7,1] <- 2;
 
 norm_second <- MASS::mvrnorm(second_n, corpula_mean_second, cov_mat_second)
 corpula_second <- norm_second
@@ -52,7 +62,7 @@ pairs(norm_second, asp = T, pch = 16,  col = rgb(0.5,0.5,0.5,0.5), lower.panel =
 pairs(corpula_second, asp = T, pch = 16,  col = rgb(0.5,0.5,0.5,0.5), lower.panel = NULL)
 ```
 
-# Third cell type
+## 1-3. Third cell type
 
 ```{r}
 third_n <- 150
@@ -61,9 +71,7 @@ corpula_mean_third <- c(10, 0, 0, 10,
 cov_mat_third <- matrix(4, p, p);
 diag(cov_mat_third) <- c(5, 10, 5, 10, 5, 10, 5, 10) # Sigma
 
-cov_mat_third[5,6] <- 1.5; cov_mat_third[6,5] <- 1.5;
-cov_mat_third[6,7] <- 5; cov_mat_third[7,6] <- 5;
-
+cov_mat_third[4,5] <- 5; cov_mat_third[5,4] <- 5;
 #(1,3), (1,5), (1,7), (2,4), (2,6), (2,8), (3,5), (3,7), (4,6), (4,8), (5,7), (6,8)
 
 norm_third <- MASS::mvrnorm(third_n, corpula_mean_third, cov_mat_third)
@@ -76,26 +84,29 @@ norm_expr <- MASS::mvrnorm(third_n, corpula_mean_third, cov_mat_third)
 
 
 # this is the gaussian data we need to make nonparanormals
-pairs(norm_third, asp = T, pch = 16,  col = rgb(0.5,0.5,0.5,0.5), lower.panel = NULL)
+pairs(norm_third, asp = T, pch = 16,  col = rgb(0.5,0.5,0.5,0.5), upper.panel = NULL)
 
 # this is the nonparanormal 
-pairs(corpula_third, asp = T, pch = 16,  col = rgb(0.5,0.5,0.5,0.5), lower.panel = NULL)
+pairs(corpula_third, asp = T, pch = 16,  col = rgb(0.5,0.5,0.5,0.5), upper.panel = NULL)
 ```
 
-# Combine the three cell types
+## 1-4. Combine the three cell types
 
 ```{r}
-gen_dat <- rbind(cbind(corpula_first, rep(1, first_n)), 
-                 cbind(corpula_second, rep(2, second_n)),
-                 cbind(corpula_third, rep(3, third_n)))
+full_dat <- rbind(cbind(corpula_first, rep(1, first_n)), 
+                  cbind(corpula_second, rep(2, second_n)),
+                  cbind(corpula_third, rep(3, third_n)))
 
-pairs(gen_dat[, 1:8], asp = T, pch = 16,  col = gen_dat[, 9], lower.panel = NULL)
-pairs(gen_dat[, 1:8], asp = T, pch = 16,  col = rgb(0.5, 0.5, 0.5, 0.5), lower.panel = NULL)
+gen_dat <- full_dat[, 1:8]
+gen_label <- full_dat[, 9]
+
+pairs(gen_dat, asp = T, pch = 16,  col = rgb(0.5, 0.5, 0.5, 0.5), lower.panel = NULL)
+pairs(gen_dat, asp = T, pch = 16,  col = rgb(0.5, 0.5, 0.5, 0.5), lower.panel = NULL)
 
 
 ```
 
-# 2 x 2 Example
+## 1-5. 2 x 2 Example
 
 ```{r}
 set.seed(10)
@@ -128,4 +139,332 @@ dat <- rbind(dat_1, dat_2)
 plot(dat[,1], dat[,2], asp = T,
      pch = 16, col = rgb(0.5, 0.5, 0.5, 0.1))
 
+```
+
+# Next Step
+# 1. Use a number of correlation methods to find dependencies among the generated data.
+# 2. Try to find data that has contrast dependency measures (i.e., high pearson but low distance correlation)
+# 3. The goal of simulation is to show that none of the 10 dependency measures aren't perfect; does not answer all. 
+# 4. If I cannot find the interesting pattern as I did over the summer,
+# 4-1. I could improve on the generated data above by manually chaning the covariance of variables in the mat.
+# 4-2. Adding more variables could resolve the issue with some changes. (Mostly L-shaped or one cluster that has no signal)
+# 4-3. All three clusters have no signals.
+# 4-4. Two of the clusters have no signals, third has a signal but negligible one.
+# 5. The number of variables for the final simulation is 20.
+
+# Push more often into the git so that I have a back-up in github.
+# Make a function that takes the data and automatically gives the heatmaps of 10 different dependency measures with/without absolute values.
+
+# 2. Dependence Measures
+
+## 2-1.	Pearson’s correlation coefficient (Linearity)
+
+```{r}
+cor_pearson_mat <- stats::cor(gen_dat, method = "pearson")
+
+cor_pearson_mat[upper.tri(cor_pearson_mat, diag = T)] <- NA
+cor_pearson_mat[1:5,1:5]
+```
+
+```{r}
+# plot the correlations
+cor_pearson_vec <- sort(abs(cor_pearson_mat), decreasing = T)
+plot(cor_pearson_vec)
+```
+
+## 2-2.	Spearman’s correlation coefficient (Monotone)
+
+```{r}
+cor_spearman_mat <- stats::cor(gen_dat, method = "spearman")
+
+cor_spearman_mat[upper.tri(cor_spearman_mat, diag = T)] <- NA
+cor_spearman_mat[1:5,1:5]
+```
+
+```{r}
+# plot the correlations
+cor_spearman_vec <- sort(abs(cor_spearman_mat), decreasing = T)
+plot(cor_spearman_vec)
+```
+
+## 2-3.	Kendall’s correlation coefficient, τ (Monotone)
+
+```{r}
+cor_kendall_mat <- stats::cor(gen_dat, method = "kendall")
+
+cor_kendall_mat[upper.tri(cor_kendall_mat, diag = T)] <- NA
+cor_kendall_mat[1:5,1:5]
+```
+
+```{r}
+# plot the correlations
+cor_kendall_vec <- sort(abs(cor_kendall_mat), decreasing = T)
+plot(cor_kendall_vec)
+```
+
+## 2-4.	Distance correlation (Non-linear)
+
+```{r}
+library(energy)
+
+cor_dist_mat <- matrix(nrow = ncol(gen_dat), ncol = ncol(gen_dat))
+
+for (i in 2:ncol(gen_dat)){
+  for (j in 1:(i-1)){
+    cor_dist_mat[i,j] <- dcor2d(as.numeric(gen_dat[, i]), as.numeric(gen_dat[, j]))
+  }
+}
+
+cor_dist_mat[upper.tri(cor_dist_mat, diag = T)] <- NA
+cor_dist_mat[1:5,1:5]
+```
+
+```{r}
+cor_dist_vec <- sort(abs(cor_dist_mat), decreasing = T)
+plot(cor_dist_vec)
+```
+
+## 2-5. Hoeffding’s D measure (Distance)
+
+```{r}
+library(Hmisc)
+
+hoeff_dist <- hoeffd(x = as.matrix(gen_dat))
+
+cor_hoeffd_mat <- hoeff_dist$D
+
+cor_hoeffd_mat[upper.tri(cor_hoeffd_mat, diag = T)] <- NA
+```
+
+```{r}
+cor_hoeffd_vec <- sort(abs(cor_hoeffd_mat), decreasing = T)
+plot(cor_hoeffd_vec)
+```
+
+## 2-6.	Mutual information (MI) (information)
+
+```{r}
+library(entropy)
+
+cor_MI_mat <- matrix(nrow = ncol(gen_dat), ncol = ncol(gen_dat))
+
+for (i in 2:ncol(gen_dat)){
+  for (j in 1:(i-1)){
+    y2d <- discretize2d(as.matrix(gen_dat[, i]),
+                        as.matrix(gen_dat[, j]),
+                        numBins1 = 20,
+                        numBins2 = 20)
+    cor_MI_mat[i,j] <- as.numeric(mi.empirical(y2d))
+  }
+}
+```
+
+```{r}
+cor_MI_vec <- sort(abs(cor_MI_mat), decreasing = T)
+plot(cor_MI_vec)
+```
+
+## 2-7. Maximum Information Coefficient (MIC) (information)
+
+```{r}
+library(minerva)
+
+cor_MIC <- mine(gen_dat)
+cor_MIC_mat <- cor_MIC$MIC
+
+cor_MIC_mat[upper.tri(cor_MIC_mat, diag = T)] <- NA
+```
+
+```{r}
+cor_MIC_vec <- sort(cor_MIC_mat, decreasing = T)
+plot(cor_MIC_vec)
+```
+
+## 2-8. Chatterjee's method
+
+```{r}
+library(XICOR)
+
+cor_XI_mat <- matrix(nrow = ncol(gen_dat), ncol = ncol(gen_dat))
+
+for (i in 2:ncol(gen_dat)){
+  for (j in 1:(i-1)){
+    cor_XI_mat[i,j] <- calculateXI(as.numeric(gen_dat[, i]), as.numeric(gen_dat[, j]))
+  }
+}
+
+cor_XI_mat[upper.tri(cor_XI_mat, diag = T)] <- NA
+```
+
+```{r}
+cor_XI_vec <- sort(abs(cor_XI_mat), decreasing = T)
+plot(cor_XI_vec)
+```
+
+## 2-9. Hilbert Schmidt Independence Criterion (HSIC)
+
+- Disregard this coefficient
+
+```{r}
+library(dHSIC)
+
+cor_HSIC_mat <- matrix(nrow = ncol(gen_dat), ncol = ncol(gen_dat))
+
+for (i in 2:ncol(gen_dat)){
+  for (j in 1:(i-1)){
+    cor_HSIC_mat[i,j] <- dhsic(as.numeric(gen_dat[, i]),
+                               as.numeric(gen_dat[, j]))$dHSIC
+  }
+}
+
+cor_HSIC_mat[upper.tri(cor_HSIC_mat, diag = T)] <- NA
+```
+
+```{r}
+cor_HSIC_vec <- sort(abs(cor_HSIC_mat), decreasing = T)
+plot(cor_HSIC_vec)
+```
+
+## 2-10. Blomqvist's Beta
+
+```{r}
+library(VineCopula)
+
+cor_blomqvist_mat <- BetaMatrix(gen_dat)
+
+cor_blomqvist_mat[upper.tri(cor_blomqvist_mat, diag = T)] <- NA
+cor_blomqvist_mat[1:5,1:5]
+```
+
+```{r}
+cor_blomqvist_vec <- sort(abs(cor_blomqvist_mat), decreasing = T)
+plot(cor_blomqvist_vec)
+```
+
+# 3. Find contrast characteristics among the correlation coefficients above
+
+## 3-1-1. low pearson (<0.50) and high spearman (>0.5) (linearity vs monotone)
+
+```{r}
+cor_contrast1 <- (abs(cor_pearson_mat) < 0.5) & (abs(cor_spearman_mat) > 0.5)
+cor_contrast_ind1 <- which(cor_contrast1, arr.ind = T)
+nrow(cor_contrast_ind1)
+```
+
+## 3-1-2. Visualization of low pearson (<0.50) and high spearman (>0.5) (linearity vs monotone)
+
+```{r}
+par(mfrow = c(2, 5))
+for (i in 1:nrow(cor_contrast_ind1)){
+   index1 <- cor_contrast_ind1[i, 1]; index2 <- cor_contrast_ind1[i, 2]
+   plot(gen_dat[,index1], gen_dat[,index2], col = gen_label, asp = T,
+      pch = 16, xlab = paste0(colnames(gen_dat)[index1], ", (", index1, ")"),
+      ylab = paste0(colnames(gen_dat)[index2], ", (", index2, ")"), 
+      main = paste(paste0("Pearson of ", round(cor_pearson_mat[index1, index2], 3)),
+                   "\n",
+                   paste0("Spearman of ", round(cor_spearman_mat[index1, index2], 3))))
+}
+```
+
+## 3-2-1. high pearson (>0.5) and low spearman (<0.3) (linearity vs monotone)
+
+```{r}
+cor_contrast2 <- (abs(cor_pearson_mat) > 0.5) & (abs(cor_spearman_mat) < 0.3)
+cor_contrast_ind2 <- which(cor_contrast2, arr.ind = T)
+nrow(cor_contrast_ind2)
+```
+
+## 3-2-2. Visualization of high pearson (>0.5) and low spearman (<0.3) (linearity vs monotone)
+
+```{r}
+par(mfrow = c(2, 5))
+for (i in 1:nrow(cor_contrast_ind2)){
+   index1 <- cor_contrast_ind2[i, 1]; index2 <- cor_contrast_ind2[i, 2]
+   plot(gen_dat[,index1], gen_dat[,index2], col = gen_label, asp = T,
+      pch = 16, xlab = paste0(colnames(gen_dat)[index1], ", (", index1, ")"),
+      ylab = paste0(colnames(gen_dat)[index2], ", (", index2, ")"), 
+      main = paste(paste0("Pearson of ", round(cor_pearson_mat[index1, index2], 3)),
+                   "\n",
+                   paste0("Spearman of ", round(cor_spearman_mat[index1, index2], 3))))
+}
+```
+
+## 3-3-1. high pearson (>0.50) and low distance correlation (<0.40) (linearity vs Non-linearity)
+
+```{r}
+cor_contrast3 <- (abs(cor_pearson_mat) > 0.5) & (abs(cor_dist_mat) < 0.4)
+cor_contrast_ind3 <- which(cor_contrast3, arr.ind = T)
+nrow(cor_contrast_ind3)
+```
+
+## 3-3-2. Visualization of high pearson (>0.70) and low distance correlation (<0.40) (linearity vs Non-linearity)
+
+```{r}
+par(mfrow = c(2, 5))
+
+for (i in 1:nrow(cor_contrast_ind3)){
+   index1 <- cor_contrast_ind3[i, 1]; index2 <- cor_contrast_ind3[i, 2]
+   plot(gen_dat[,index1], gen_dat[,index2], col = gen_label, asp = T,
+      pch = 16, xlab = paste0(colnames(gen_dat)[index1], ", (", index1, ")"),
+      ylab = paste0(colnames(gen_dat)[index2], ", (", index2, ")"), 
+      main = paste(paste0("Pearson of ", round(cor_pearson_mat[index1, index2], 3)),
+                   "\n",
+                   paste0("Dist.Cor of ", round(cor_dist_mat[index1, index2], 3))))
+}
+```
+
+## 3-4-1. low pearson (<0.40) and high distance correlation (>0.50) (linearity vs Non-linearity)
+
+```{r}
+cor_contrast4 <- (abs(cor_pearson_mat) < 0.5) & (abs(cor_dist_mat) > 0.5)
+cor_contrast_ind4 <- which(cor_contrast4, arr.ind = T)
+nrow(cor_contrast_ind4)
+```
+
+## 3-5-1. low pearson (< 0.5) and high MIC (> 0.5) (linearity vs Information)
+
+```{r}
+cor_contrast5 <- (abs(cor_pearson_mat) < 0.5) & (abs(cor_MIC_mat) > 0.5)
+cor_contrast_ind5 <- which(cor_contrast5, arr.ind = T)
+nrow(cor_contrast_ind5)
+```
+
+## 3-5-2. Visualization of low pearson (< 0.5) and high MIC (> 0.5) (linearity vs Information)
+
+```{r}
+par(mfrow = c(2, 5))
+
+for (i in 1:nrow(cor_contrast_ind5)){
+   index1 <- cor_contrast_ind5[i, 1]; index2 <- cor_contrast_ind5[i, 2]
+   plot(gen_dat[,index1], gen_dat[,index2], col = gen_label, asp = T,
+      pch = 16, xlab = paste0(colnames(gen_dat)[index1], ", (", index1, ")"),
+      ylab = paste0(colnames(gen_dat)[index2], ", (", index2, ")"), 
+      main = paste(paste0("Pearson of ", round(cor_pearson_mat[index1, index2], 3)),
+                   "\n",
+                   paste0("MIC of ", round(cor_MIC_mat[index1, index2], 3))))
+}
+```
+
+## 3-6-1. High pearson (> 0.5) and low MIC (< 0.4) (linearity vs Information)
+
+```{r}
+cor_contrast6 <- (abs(cor_pearson_mat) > 0.5) & (abs(cor_MIC_mat) < 0.4)
+cor_contrast_ind6 <- which(cor_contrast6, arr.ind = T)
+nrow(cor_contrast_ind6)
+```
+
+## 3-6-2. Visualization of High pearson (> 0.5) and low MIC (< 0.4) (linearity vs Information)
+
+```{r}
+par(mfrow = c(2, 5))
+
+for (i in 1:nrow(cor_contrast_ind6)){
+   index1 <- cor_contrast_ind6[i, 1]; index2 <- cor_contrast_ind6[i, 2]
+   plot(gen_dat[,index1], gen_dat[,index2], col = gen_label, asp = T,
+      pch = 16, xlab = paste0(colnames(gen_dat)[index1], ", (", index1, ")"),
+      ylab = paste0(colnames(gen_dat)[index2], ", (", index2, ")"), 
+      main = paste(paste0("Pearson of ", round(cor_pearson_mat[index1, index2], 3)),
+                   "\n",
+                   paste0("MIC of ", round(cor_MIC_mat[index1, index2], 3))))
+}
 ```
