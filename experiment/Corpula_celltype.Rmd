@@ -104,10 +104,8 @@ full_dat <- rbind(cbind(corpula_first, rep(1, first_n)),
 gen_dat <- full_dat[, 1:8]
 gen_label <- full_dat[, 9]
 
+pairs(gen_dat, asp = T, pch = 16,  col = gen_label, lower.panel = NULL)
 pairs(gen_dat, asp = T, pch = 16,  col = rgb(0.5, 0.5, 0.5, 0.5), lower.panel = NULL)
-pairs(gen_dat, asp = T, pch = 16,  col = rgb(0.5, 0.5, 0.5, 0.5), lower.panel = NULL)
-
-
 ```
 
 ## 1-5. 2 x 2 Example
@@ -144,6 +142,10 @@ plot(dat[,1], dat[,2], asp = T,
      pch = 16, col = rgb(0.5, 0.5, 0.5, 0.1))
 
 ```
+
+## 1-5. Defining functions for next section
+
+- Define functions that calculate correlation matrices and draw heatmaps of corresponding matrices
 
 ```{r}
 library(reshape2) # melt function
@@ -233,32 +235,71 @@ draw_heatmap <- function(cor_mat){
     heatmap_color <- unique(melted_cormat$value)
   
     heatmap <- ggplot(data = melted_cormat, aes(x = Var2, y = Var1, fill = value))+
-      geom_tile() +
+      geom_tile(colour = "Black") +
       ggplot2::scale_fill_manual(breaks = sort(heatmap_color), 
                                  values = rev(scales::viridis_pal(begin = 0, end = 1)
-                                              (length(heatmap_color))))
+                                              (length(heatmap_color)))) +
+      theme_bw() + # make the background white
+      theme(panel.border = element_blank(), panel.grid.major = element_blank(),
+            panel.grid.minor = element_blank(), axis.ticks = element_blank(),
+            # erase tick marks and labels
+            axis.text.x = element_blank(), axis.text.y = element_blank())
+    
     return (heatmap)
 }
 
 make_cor_heatmap <- function(dat_mat){
+  fun_lable <- c("Pearson's Correlation", "Spearman's Correlation", "Kendall's Correlation",
+                 "Hoeffding's D", "MIC", "Blomqvist's Beta", "Distance Correlation",
+                 "Mutual Information", "XI Correlation", "HSIC")
+  
   cor_heatmap_list <- list()
   cor_abs_heatmap_list <- list()
+  
+  # make correlation matrices
   cor_mat_list <- make_cormat(dat_mat)
+  
   for (i in 1:10){
     cor_mat <- cor_mat_list[[i]]
-    cor_abs_mat <- abs(cor_mat_list[[i]])
+    
+    # get heatmaps
     cor_heatmap <- draw_heatmap(cor_mat)
-    cor_abs_heatmap <- draw_heatmap(cor_abs_mat)
-    cor_heatmap_list[[length(cor_heatmap_list) + 1]] <- cor_heatmap
-    cor_abs_heatmap_list[[length(cor_abs_heatmap_list) + 1]] <- cor_abs_heatmap
+    
+    # ggplot labels
+    ggplot_labs <- labs(title = paste("Heatmap of", fun_lable[i]),
+                      x = "",
+                      y = "",
+                      fill = "Coefficient") # change the title and legend label
+      
+    cor_heatmap_list[[i]] <- cor_heatmap + ggplot_labs
+    
+    if (i %in% c(1,2,3,4,6)){
+      cor_abs_mat <- abs(cor_mat_list[[i]])
+      cor_abs_heatmap <- draw_heatmap(cor_abs_mat)
+      ggplot_abs_labs <- labs(title = paste("Abs Heatmap of", fun_lable[i]),
+                              x = "", # change the title and legend label
+                              y = "", 
+                              fill = "Coefficient") 
+      cor_abs_heatmap_list[[i]] <- cor_abs_heatmap + ggplot_abs_labs
+    } else {
+      ggplot_abs_labs <- labs(title = paste("Abs Heatmap of", fun_lable[i]),
+                              subtitle = "Equivalent to Non-Abs Heatmap",
+                              x = "", # change the title and legend label
+                              y = "", 
+                              fill = "Coefficient") 
+      cor_abs_heatmap_list[[i]] <- cor_heatmap + ggplot_abs_labs
     }
+  }
+  
   ans <- list(cor_heatmap_list, cor_abs_heatmap_list)
+  
   return (ans)
 }
 ```
 
 ```{r}
 lst <- make_cor_heatmap(gen_dat)
+lst2 <- lst[[2]]
 # lst[[1]]
 lst[[1]][[4]]
 ```
@@ -799,4 +840,27 @@ for (i in 1:nrow(cor_contrast_ind20)){
                    "\n",
                    paste0("XI of ", round(cor_XI_mat[index1, index2], 3))))
 }
+```
+
+```{r}
+meaning_index <- rbind(cor_contrast_ind1, cor_contrast_ind2, cor_contrast_ind3,
+                       cor_contrast_ind4, cor_contrast_ind5, cor_contrast_ind6,
+                       cor_contrast_ind7, cor_contrast_ind8, cor_contrast_ind9,
+                       cor_contrast_ind10, cor_contrast_ind11, cor_contrast_ind12,
+                       cor_contrast_ind13, cor_contrast_ind14, cor_contrast_ind15,
+                       cor_contrast_ind16, cor_contrast_ind17, cor_contrast_ind18,
+                       cor_contrast_ind19, cor_contrast_ind20)
+
+
+# c(1,4,6,8)
+
+```
+
+
+```{r}
+full_dat1 <- full_dat[, c(1,4,6,8,9)]
+save(full_dat1,
+    file = "full_gen_dat1.RData")
+
+load("full_gen_dat1.RData")
 ```
