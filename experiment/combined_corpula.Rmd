@@ -1,0 +1,39 @@
+---
+title: "combined_corpula"
+author: "Taewan Kim"
+date: "1/28/2021"
+output:
+    html_document:
+    toc:  true
+    toc_float:  true
+    code_folding:  show
+---
+
+# Import the two generated datasets
+
+```{r}
+load("full_gen_dat1.RData")
+load("full_gen_dat2.RData")
+
+ncol1 <- ncol(full_dat1)
+ncol2 <- ncol(full_dat2)
+
+gen_dat1 <- full_dat1[, 1:ncol1-1]
+gen_dat_label1 <- full_dat1[, ncol1]
+
+gen_dat2 <- full_dat2[, 1:ncol2-1]
+gen_dat_label2 <- full_dat2[, ncol2]
+```
+
+```{r}
+pairs(gen_dat1, lower.panel = NULL)
+pairs(gen_dat2, lower.panel = NULL)
+```
+
+```{r}
+new_dat <- cbind(gen_dat1, gen_dat2)
+
+pairs(new_dat, lower.panel = NULL)
+
+# y = 1:4, x = 5:9
+```
