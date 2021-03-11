@@ -1,0 +1,289 @@
+---
+title: "contrast_pattern"
+author: "Taewan Kim"
+date: "3/4/2021"
+output: html_document
+---
+
+```{r}
+library(reshape2) # melt function
+library(ggplot2) # ggplot function
+library(pcaPP) # Fast Kendall function
+library(energy) # Distance Correlation
+library(Hmisc) # Hoeffding's D measure
+library(entropy) # Mutual Information
+library(minerva) # Maximum Information Coefficient
+library(XICOR) # Chatterjee's Coefficient
+library(dHSIC) # Hilbert Schmidt Independence Criterion
+library(VineCopula) # Blomqvist's Beta
+
+source("data_generation.R")
+```
+
+```{r}
+generate_quadratic <- function(n){
+  t(sapply(1:n, function(i){
+    x <- stats::runif(1, min = -1, max = 1)
+    y <- x^2
+    c(x,y)
+  }))
+}
+
+generate_quadratic2 <- function(n){
+  t(sapply(1:n, function(i){
+    x <- stats::runif(1, min = -1, max = 1)
+    y <- x^2 + stats::rnorm(1, mean = 0, sd = 0.3)
+    c(x,y)
+  }))
+}
+
+gen_vertical1 <- function(n){
+  t(sapply(1:n, function(i){
+    x <- stats::runif(1, min = -2, max = 2)
+    y <- 0 
+    c(x,y)
+  }))
+}
+
+gen_vertical2 <- function(n){
+  t(sapply(1:n, function(i){
+    x <- 0
+    y <- stats::runif(1, min = -2, max = 2)
+    c(x,y)
+  }))
+}
+
+generate_power <- function(n){
+  t(sapply(1:n, function(i){
+    x <- stats::runif(1, min = 0, max = 2)
+    y <- x^10 + stats::rnorm(1, mean = 10, sd = 10)
+    c(x,y)
+  }))
+}
+
+gen_linear <- function(n){
+  t(sapply(1:n, function(i){
+    # generate "cluster" assignment
+    x <- stats::rnorm(1, mean = 2.5, sd = 1)
+    y <- x + stats::rnorm(1, mean = 0, sd = 1)
+    c(x,y)
+  }))
+}
+
+gen_strong_linear <- function(n){
+  t(sapply(1:n, function(i){
+    # generate "cluster" assignment
+    x <- stats::rnorm(1, mean = 2.5, sd = 1)
+    y <- x + stats::rnorm(1, mean = 0, sd = 0.3)
+    c(x,y)
+  }))
+}
+
+gen_sine <- function(n){
+  t(sapply(1:n, function(i){
+    x <- stats::runif(1, min = -2, max = 12)
+    y <- sin(x) + stats::rnorm(1, mean = 0, sd = 0.1)
+    c(x,y)
+  }))
+}
+```
+
+```{r}
+quadratic_1 <- generate_quadratic(100)
+plot(quadratic_1)
+```
+
+```{r}
+exper_n <- 500
+
+ver1 <- gen_vertical1(exper_n)
+plot(ver1)
+
+ver2 <- gen_vertical2(exper_n)
+plot(ver2)
+
+cross <- rbind(ver1, ver2)
+plot(cross)
+```
+
+```{r}
+power <- generate_power(exper_n)
+plot(power)
+```
+
+```{r}
+quadratic2 <- generate_quadratic2(400)
+plot(quadratic2)
+```
+
+```{r}
+sine <- gen_sine(exper_n)
+plot(sine)
+```
+
+## Dcor vs Pearson
+
+```{r}
+plot(quadratic_1)
+```
+
+```{r}
+energy::dcor(quadratic_1[,1],quadratic_1[,2])
+stats::cor(quadratic_1, method = "pearson")
+#stats::cor(quadratic_1, method = "spearman")
+
+```
+
+### Things to consider
+
+```{r}
+lollipop <- .generate_lollipop(500)
+plot(lollipop)
+```
+
+```{r}
+stats::cor(lollipop)
+energy::dcor(lollipop[,1],lollipop[,2])
+```
+
+## XI vs Spearman
+
+### Linear
+```{r}
+lin <- gen_linear(200)
+plot(lin)
+```
+
+```{r}
+XICOR::calculateXI(lin[,1], lin[,2])
+stats::cor(lin, method = "spearman")
+```
+
+### Quadratic
+
+```{r}
+XICOR::calculateXI(quadratic_1[,1], quadratic_1[,2])
+stats::cor(quadratic_1, method = "spearman")
+```
+
+### Sine
+
+```{r}
+XICOR::calculateXI(sine[,1], sine[,2])
+stats::cor(sine, method = "spearman")
+```
+
+## Hoeffding's D vs XI
+
+### quadratic
+
+```{r}
+Hmisc::hoeffd(sine[,1], sine[,2])$D
+XICOR::calculateXI(sine[,1], sine[,2])
+```
+
+```{r}
+plot(quadratic_1)
+```
+
+```{r}
+Hmisc::hoeffd(quadratic_1[,1], quadratic_1[,2])$D
+XICOR::calculateXI(quadratic_1[,1], quadratic_1[,2])
+```
+
+### Quadratic with noise
+
+```{r}
+plot(quadratic2)
+```
+
+```{r}
+Hmisc::hoeffd(quadratic2[,1], quadratic2[,2])$D
+XICOR::calculateXI(quadratic2[,1], quadratic2[,2])
+```
+
+## Beta vs Spearman
+
+### steep exponential 
+
+```{r}
+plot(power)
+```
+
+```{r}
+stats::cor(power, method = "spearman")
+VineCopula::BetaMatrix(power)
+```
+
+```{r}
+gen_quadrant <- function(n){
+  t(sapply(1:n, function(i){
+    rand_int <- sample(1:4, 1)
+    if (rand_int == 1){
+      x <- stats::runif(1, min = 0, max = 3)
+      y <- stats::runif(1, min = 0, max = 3)
+      
+    } else if (rand_int == 2){
+      x <- stats::runif(1, min = 0, max = 4)
+      y <- stats::runif(1, min = 10, max = 14)
+      
+    } else if (rand_int == 3){
+      x <- stats::runif(1, min = 10, max = 14)
+      y <- stats::runif(1, min = 0, max = 4)
+      
+    } else {
+      x <- stats::runif(1, min = 10, max = 14)
+      y <- stats::runif(1, min = 10, max = 14)
+    }
+    c(x,y)
+  }))
+}
+
+quadrant <- gen_quadrant(exper_n)
+
+mean(quadrant[, 1])
+mean(quadrant[, 2])
+plot(quadrant)
+```
+
+## Beta vs MI
+
+```{r}
+VineCopula::BetaMatrix(quadrant)
+mi.empirical(entropy::discretize2d(as.matrix(quadrant[, 1]), as.matrix(quadrant[, 2]), numBins1 = 20, numBins2 = 20))
+```
+
+
+## Beta vs Kendall 
+
+```{r}
+plot(quadrant)
+```
+
+```{r}
+VineCopula::BetaMatrix(quadrant)
+stats::cor(quadrant, method = "kendall")
+#minerva::mine(quadrant)$MIC
+```
+
+
+```{r}
+plot(lin)
+```
+
+```{r}
+VineCopula::BetaMatrix(lin)
+stats::cor(lin, method = "kendall")
+#minerva::mine(quadrant)$MIC
+```
+
+## MIC vs MI
+
+```{r}
+plot(quadratic_1)
+```
+
+```{r}
+minerva::mine(quadratic_1)$MIC
+mi.empirical(entropy::discretize2d(as.matrix(quadratic_1[, 1]), as.matrix(quadratic_1[, 2]), numBins1 = 10, numBins2 = 10))
+```
