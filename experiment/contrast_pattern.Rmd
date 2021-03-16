@@ -1,7 +1,7 @@
 ---
 title: "contrast_pattern"
 author: "Taewan Kim"
-date: "3/4/2021"
+date: "3/16/2021"
 output: html_document
 ---
 
@@ -286,4 +286,257 @@ plot(quadratic_1)
 ```{r}
 minerva::mine(quadratic_1)$MIC
 mi.empirical(entropy::discretize2d(as.matrix(quadratic_1[, 1]), as.matrix(quadratic_1[, 2]), numBins1 = 10, numBins2 = 10))
+```
+
+
+# Explore more about the lollipop
+
+```{r}
+original <- .generate_lollipop
+```
+
+```{r}
+set.seed(11)
+lollipop <- original(500)
+plot(lollipop)
+```
+
+```{r}
+stats::cor(lollipop, method = "pearson")[1,2]
+energy::dcor(lollipop[,1],lollipop[,2])
+```
+
+```{r}
+XICOR::calculateXI(lollipop[,1], lollipop[,2])
+stats::cor(lollipop, method = "spearman")[1,2]
+```
+
+```{r}
+Hmisc::hoeffd(lollipop[,1], lollipop[,2])$D
+XICOR::calculateXI(lollipop[,1], lollipop[,2])
+```
+
+```{r}
+stats::cor(lollipop, method = "spearman")[1,2]
+VineCopula::BetaMatrix(lollipop)[1,2]
+```
+
+```{r}
+VineCopula::BetaMatrix(lollipop)[1,2]
+stats::cor(lollipop, method = "kendall")[1,2]
+```
+
+```{r}
+new_lollipop1 <- function(n){
+  t(sapply(1:n, function(i){
+    # generate "cluster" assignment
+    k <- sample(1:3, 1)
+    
+    # generate "ball"
+    if(k == 1){
+      x <- stats::rnorm(1, mean = 0, sd = 1)
+      y <- stats::rnorm(1, mean = 0, sd = 1)
+    
+      # generate "bridge"
+    } else if (k == 2){
+      x <- stats::rnorm(1, mean = 1, sd = 0.5)
+      y <- stats::rnorm(1, mean = 2, sd = 0.5)
+      
+    } else {
+      # k == 3, generate "stick"
+      x <- stats::rnorm(1, mean = 3, sd = 0.8)
+      y <- x + stats::rnorm(1, mean = 1, sd = 0.5)
+    } 
+    
+    c(x,y)
+  }))
+}
+```
+
+```{r}
+set.seed(10)
+new_pop1 <- new_lollipop1(500)
+plot(new_pop1)
+```
+
+```{r}
+stats::cor(new_pop1, method = "pearson")[1,2]
+energy::dcor(new_pop1[,1],new_pop1[,2])
+```
+
+```{r}
+XICOR::calculateXI(new_pop1[,1], new_pop1[,2])
+stats::cor(new_pop1, method = "spearman")[1,2]
+```
+
+```{r}
+Hmisc::hoeffd(new_pop1[,1], new_pop1[,2])$D
+XICOR::calculateXI(new_pop1[,1], new_pop1[,2])
+```
+
+```{r}
+stats::cor(new_pop1, method = "spearman")[1,2]
+VineCopula::BetaMatrix(new_pop1)[1,2]
+```
+
+```{r}
+VineCopula::BetaMatrix(new_pop1)[1,2]
+stats::cor(new_pop1, method = "kendall")[1,2]
+```
+
+```{r}
+set.seed(10)
+new_lollipop2 <- function(n){
+  t(sapply(1:n, function(i){
+    # generate "cluster" assignment
+    k <- sample(1:2, 1)
+    
+    # generate "ball"
+    if(k == 1){
+      x <- stats::rnorm(1, mean = 0, sd = 1)
+      y <- stats::rnorm(1, mean = 0, sd = 1)
+    } else {
+      # k == 2, generate "stick"
+      x <- stats::rnorm(1, mean = 1, sd = 0.8)
+      y <- x + stats::rnorm(1, mean = 0.5, sd = 0.5)
+    }
+        
+    c(x,y)
+  }))
+}
+```
+
+```{r}
+new_pop2 <- new_lollipop2(500)
+plot(new_pop2)
+```
+
+```{r}
+stats::cor(new_pop2, method = "pearson")[1,2]
+energy::dcor(new_pop2[,1],new_pop2[,2])
+```
+
+```{r}
+XICOR::calculateXI(new_pop2[,1], new_pop2[,2])
+stats::cor(new_pop2, method = "spearman")[1,2]
+```
+
+```{r}
+Hmisc::hoeffd(new_pop2[,1], new_pop2[,2])$D
+XICOR::calculateXI(new_pop2[,1], new_pop2[,2])
+```
+
+```{r}
+stats::cor(new_pop2, method = "spearman")[1,2]
+VineCopula::BetaMatrix(new_pop2)[1,2]
+```
+
+```{r}
+VineCopula::BetaMatrix(new_pop2)[1,2]
+stats::cor(new_pop2, method = "kendall")[1,2]
+```
+
+```{r}
+set.seed(15)
+new_lollipop3 <- function(n){
+  t(sapply(1:n, function(i){
+    # generate "cluster" assignment
+    k <- sample(1:2, 1)
+    
+    # generate "ball"
+    if(k == 1){
+      x <- stats::rnorm(1, mean = 0, sd = 1)
+      y <- stats::rnorm(1, mean = 0, sd = 1)
+      
+    } else {
+      # k == 2, generate "stick"
+      x <- stats::rnorm(1, mean = 3, sd = 0.5)
+      y <- x + stats::rnorm(1, mean = 1, sd = 0.5)
+    }
+        
+    c(x,y)
+  }))
+}
+```
+
+```{r}
+new_pop3 <- new_lollipop3(500)
+plot(new_pop3)
+```
+
+```{r}
+stats::cor(new_pop3, method = "pearson")[1,2]
+energy::dcor(new_pop3[,1],new_pop3[,2])
+```
+
+```{r}
+XICOR::calculateXI(new_pop3[,1], new_pop3[,2])
+stats::cor(new_pop3, method = "spearman")[1,2]
+```
+
+```{r}
+Hmisc::hoeffd(new_pop3[,1], new_pop3[,2])$D
+XICOR::calculateXI(new_pop3[,1], new_pop3[,2])
+```
+
+```{r}
+stats::cor(new_pop3, method = "spearman")[1,2]
+VineCopula::BetaMatrix(new_pop3)[1,2]
+```
+
+```{r}
+VineCopula::BetaMatrix(new_pop3)[1,2]
+stats::cor(new_pop3, method = "kendall")[1,2]
+```
+
+```{r}
+set.seed(230)
+new_lollipop4 <- function(n){
+  t(sapply(1:n, function(i){
+    # generate "cluster" assignment
+    k <- sample(c(1,2), 1)
+    
+    # generate "ball"
+    if(k == 1){
+      x <- stats::rnorm(1, mean = 0, sd = 1)
+      y <- stats::rnorm(1, mean = 0, sd = 1)
+    } else {
+      # k == 2, generate "stick"
+      x <- stats::rnorm(1, mean = 1, sd = 0.8)
+      y <- x + stats::rnorm(1, mean = 1, sd = 0.5)
+    }
+    
+    c(x,y)
+  }))
+}
+```
+
+```{r}
+new_pop4 <- new_lollipop4(500)
+plot(new_pop4)
+```
+
+```{r}
+stats::cor(new_pop4, method = "pearson")[1,2]
+energy::dcor(new_pop4[,1],new_pop4[,2])
+```
+
+```{r}
+XICOR::calculateXI(new_pop4[,1], new_pop4[,2])
+stats::cor(new_pop4, method = "spearman")[1,2]
+```
+
+```{r}
+Hmisc::hoeffd(new_pop4[,1], new_pop4[,2])$D
+XICOR::calculateXI(new_pop4[,1], new_pop4[,2])
+```
+
+```{r}
+stats::cor(new_pop4, method = "spearman")[1,2]
+VineCopula::BetaMatrix(new_pop4)[1,2]
+```
+
+```{r}
+VineCopula::BetaMatrix(new_pop4)[1,2]
+stats::cor(new_pop4, method = "kendall")[1,2]
 ```
