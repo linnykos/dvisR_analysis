@@ -1,7 +1,7 @@
 ---
 title: "contrast_pattern"
 author: "Taewan Kim"
-date: "3/16/2021"
+date: "3/21/2021"
 output: html_document
 ---
 
@@ -18,6 +18,23 @@ library(dHSIC) # Hilbert Schmidt Independence Criterion
 library(VineCopula) # Blomqvist's Beta
 
 source("data_generation.R")
+```
+
+```{r}
+my_beta <- function(x, y){
+    # following Blomqvist, N. (1950).  On a measure of dependence between two
+    # random variables. The Annals of Mathematical Statistics, 21(4), 593-600.
+    mx <- median(x); my <- median(y)
+    n1 <- sum(x < mx & y > my) +  sum(x > mx & y < my)
+    n2 <- sum(x < mx & y < my) +  sum(x > mx & y > my)
+    
+    return ((n1 - n2)/(n1 + n2))
+ 
+}
+
+my_XICOR <- function(x, y){
+  return(max(XICOR::calculateXI(x,y), XICOR::calculateXI(y,x)))
+}
 ```
 
 ```{r}
@@ -155,21 +172,21 @@ plot(lin)
 ```
 
 ```{r}
-XICOR::calculateXI(lin[,1], lin[,2])
+my_XICOR(lin[,1], lin[,2])
 stats::cor(lin, method = "spearman")
 ```
 
 ### Quadratic
 
 ```{r}
-XICOR::calculateXI(quadratic_1[,1], quadratic_1[,2])
+my_XICOR(quadratic_1[,1], quadratic_1[,2])
 stats::cor(quadratic_1, method = "spearman")
 ```
 
 ### Sine
 
 ```{r}
-XICOR::calculateXI(sine[,1], sine[,2])
+my_XICOR(sine[,1], sine[,2])
 stats::cor(sine, method = "spearman")
 ```
 
@@ -179,7 +196,7 @@ stats::cor(sine, method = "spearman")
 
 ```{r}
 Hmisc::hoeffd(sine[,1], sine[,2])$D
-XICOR::calculateXI(sine[,1], sine[,2])
+my_XICOR(sine[,1], sine[,2])
 ```
 
 ```{r}
@@ -188,7 +205,7 @@ plot(quadratic_1)
 
 ```{r}
 Hmisc::hoeffd(quadratic_1[,1], quadratic_1[,2])$D
-XICOR::calculateXI(quadratic_1[,1], quadratic_1[,2])
+my_XICOR(quadratic_1[,1], quadratic_1[,2])
 ```
 
 ### Quadratic with noise
@@ -199,7 +216,7 @@ plot(quadratic2)
 
 ```{r}
 Hmisc::hoeffd(quadratic2[,1], quadratic2[,2])$D
-XICOR::calculateXI(quadratic2[,1], quadratic2[,2])
+my_XICOR(quadratic2[,1], quadratic2[,2])
 ```
 
 ## Beta vs Spearman
@@ -212,7 +229,7 @@ plot(power)
 
 ```{r}
 stats::cor(power, method = "spearman")
-VineCopula::BetaMatrix(power)
+my_beta(power[,1], power[,2])
 ```
 
 ```{r}
@@ -249,7 +266,7 @@ plot(quadrant)
 ## Beta vs MI
 
 ```{r}
-VineCopula::BetaMatrix(quadrant)
+my_beta(quadrant[, 1], quadrant[, 2])
 mi.empirical(entropy::discretize2d(as.matrix(quadrant[, 1]), as.matrix(quadrant[, 2]), numBins1 = 20, numBins2 = 20))
 ```
 
@@ -261,7 +278,7 @@ plot(quadrant)
 ```
 
 ```{r}
-VineCopula::BetaMatrix(quadrant)
+my_beta(quadrant[, 1], quadrant[, 2])
 stats::cor(quadrant, method = "kendall")
 #minerva::mine(quadrant)$MIC
 ```
@@ -272,7 +289,7 @@ plot(lin)
 ```
 
 ```{r}
-VineCopula::BetaMatrix(lin)
+my_beta(lin[, 1], lin[, 2])
 stats::cor(lin, method = "kendall")
 #minerva::mine(quadrant)$MIC
 ```
@@ -307,24 +324,26 @@ energy::dcor(lollipop[,1],lollipop[,2])
 ```
 
 ```{r}
-XICOR::calculateXI(lollipop[,1], lollipop[,2])
+my_XICOR(lollipop[,1], lollipop[,2])
 stats::cor(lollipop, method = "spearman")[1,2]
 ```
 
 ```{r}
 Hmisc::hoeffd(lollipop[,1], lollipop[,2])$D
-XICOR::calculateXI(lollipop[,1], lollipop[,2])
+my_XICOR(lollipop[,1], lollipop[,2])
 ```
 
 ```{r}
 stats::cor(lollipop, method = "spearman")[1,2]
-VineCopula::BetaMatrix(lollipop)[1,2]
+my_beta(lollipop[, 1], lollipop[, 2])
 ```
 
 ```{r}
-VineCopula::BetaMatrix(lollipop)[1,2]
+my_beta(lollipop[, 1], lollipop[, 2])
 stats::cor(lollipop, method = "kendall")[1,2]
 ```
+
+## Three cluster total
 
 ```{r}
 new_lollipop1 <- function(n){
@@ -365,24 +384,26 @@ energy::dcor(new_pop1[,1],new_pop1[,2])
 ```
 
 ```{r}
-XICOR::calculateXI(new_pop1[,1], new_pop1[,2])
+my_XICOR(new_pop1[,1], new_pop1[,2])
 stats::cor(new_pop1, method = "spearman")[1,2]
 ```
 
 ```{r}
 Hmisc::hoeffd(new_pop1[,1], new_pop1[,2])$D
-XICOR::calculateXI(new_pop1[,1], new_pop1[,2])
+my_XICOR(new_pop1[,1], new_pop1[,2])
 ```
 
 ```{r}
 stats::cor(new_pop1, method = "spearman")[1,2]
-VineCopula::BetaMatrix(new_pop1)[1,2]
+my_beta(new_pop1[, 1], new_pop1[, 2])
 ```
 
 ```{r}
-VineCopula::BetaMatrix(new_pop1)[1,2]
+my_beta(new_pop1[, 1], new_pop1[, 2])
 stats::cor(new_pop1, method = "kendall")[1,2]
 ```
+
+## two cluster that continously connects the circle and stick
 
 ```{r}
 set.seed(10)
@@ -397,7 +418,7 @@ new_lollipop2 <- function(n){
       y <- stats::rnorm(1, mean = 0, sd = 1)
     } else {
       # k == 2, generate "stick"
-      x <- stats::rnorm(1, mean = 1, sd = 0.8)
+      x <- stats::rnorm(1, mean = 1.5, sd = 0.8)
       y <- x + stats::rnorm(1, mean = 0.5, sd = 0.5)
     }
         
@@ -417,24 +438,26 @@ energy::dcor(new_pop2[,1],new_pop2[,2])
 ```
 
 ```{r}
-XICOR::calculateXI(new_pop2[,1], new_pop2[,2])
+my_beta(new_pop2[,1], new_pop2[,2])
 stats::cor(new_pop2, method = "spearman")[1,2]
 ```
 
 ```{r}
 Hmisc::hoeffd(new_pop2[,1], new_pop2[,2])$D
-XICOR::calculateXI(new_pop2[,1], new_pop2[,2])
+my_beta(new_pop2[,1], new_pop2[,2])
 ```
 
 ```{r}
 stats::cor(new_pop2, method = "spearman")[1,2]
-VineCopula::BetaMatrix(new_pop2)[1,2]
+my_beta(new_pop2[,1], new_pop2[,2])
 ```
 
 ```{r}
-VineCopula::BetaMatrix(new_pop2)[1,2]
+my_beta(new_pop2[,1], new_pop2[,2])
 stats::cor(new_pop2, method = "kendall")[1,2]
 ```
+
+## very long stick
 
 ```{r}
 set.seed(15)
@@ -450,7 +473,7 @@ new_lollipop3 <- function(n){
       
     } else {
       # k == 2, generate "stick"
-      x <- stats::rnorm(1, mean = 3, sd = 0.5)
+      x <- stats::rnorm(1, mean = 6, sd = 4)
       y <- x + stats::rnorm(1, mean = 1, sd = 0.5)
     }
         
@@ -470,24 +493,26 @@ energy::dcor(new_pop3[,1],new_pop3[,2])
 ```
 
 ```{r}
-XICOR::calculateXI(new_pop3[,1], new_pop3[,2])
+my_beta(new_pop3[,1], new_pop3[,2])
 stats::cor(new_pop3, method = "spearman")[1,2]
 ```
 
 ```{r}
 Hmisc::hoeffd(new_pop3[,1], new_pop3[,2])$D
-XICOR::calculateXI(new_pop3[,1], new_pop3[,2])
+my_beta(new_pop3[,1], new_pop3[,2])
 ```
 
 ```{r}
 stats::cor(new_pop3, method = "spearman")[1,2]
-VineCopula::BetaMatrix(new_pop3)[1,2]
+my_beta(new_pop3[,1], new_pop3[,2])
 ```
 
 ```{r}
-VineCopula::BetaMatrix(new_pop3)[1,2]
+my_beta(new_pop3[,1], new_pop3[,2])
 stats::cor(new_pop3, method = "kendall")[1,2]
 ```
+
+## less longer stick
 
 ```{r}
 set.seed(230)
@@ -498,12 +523,12 @@ new_lollipop4 <- function(n){
     
     # generate "ball"
     if(k == 1){
-      x <- stats::rnorm(1, mean = 0, sd = 1)
-      y <- stats::rnorm(1, mean = 0, sd = 1)
+      x <- stats::rnorm(1, mean = 0, sd = 0.5)
+      y <- stats::rnorm(1, mean = 1, sd = 0.5)
     } else {
       # k == 2, generate "stick"
-      x <- stats::rnorm(1, mean = 1, sd = 0.8)
-      y <- x + stats::rnorm(1, mean = 1, sd = 0.5)
+      x <- stats::rnorm(1, mean = 1, sd = 1)
+      y <- x + stats::rnorm(1, mean = 1, sd = 0.3)
     }
     
     c(x,y)
@@ -522,21 +547,257 @@ energy::dcor(new_pop4[,1],new_pop4[,2])
 ```
 
 ```{r}
-XICOR::calculateXI(new_pop4[,1], new_pop4[,2])
+my_XICOR(new_pop4[,1], new_pop4[,2])
 stats::cor(new_pop4, method = "spearman")[1,2]
 ```
 
 ```{r}
 Hmisc::hoeffd(new_pop4[,1], new_pop4[,2])$D
-XICOR::calculateXI(new_pop4[,1], new_pop4[,2])
+my_XICOR(new_pop4[,1], new_pop4[,2])
 ```
 
 ```{r}
 stats::cor(new_pop4, method = "spearman")[1,2]
-VineCopula::BetaMatrix(new_pop4)[1,2]
+my_beta(new_pop4[ ,1], new_pop4[, 2])
 ```
 
 ```{r}
-VineCopula::BetaMatrix(new_pop4)[1,2]
+my_beta(new_pop4[ ,1], new_pop4[, 2])
 stats::cor(new_pop4, method = "kendall")[1,2]
+```
+
+## less dense stick in the circle
+
+```{r}
+set.seed(230)
+new_lollipop5 <- function(n){
+  t(sapply(1:n, function(i){
+    # generate "cluster" assignment
+    k <- sample(c(1,2), 1)
+    
+    # generate "ball"
+    if(k == 1){
+      x <- stats::rnorm(1, mean = 0, sd = 1)
+      y <- stats::rnorm(1, mean = 0, sd = 1)
+    } else {
+      # k == 2, generate "stick"
+      x <- stats::rnorm(1, mean = 0, sd = 1)
+      y <- x + stats::rnorm(1, mean = 0, sd = 0.3)
+    }
+    
+    c(x,y)
+  }))
+}
+```
+
+```{r}
+new_pop5 <- new_lollipop5(500)
+plot(new_pop5)
+```
+
+```{r}
+stats::cor(new_pop5, method = "pearson")[1,2]
+energy::dcor(new_pop5[,1],new_pop5[,2])
+```
+
+```{r}
+my_XICOR(new_pop5[,1], new_pop5[,2])
+stats::cor(new_pop5, method = "spearman")[1,2]
+```
+
+```{r}
+Hmisc::hoeffd(new_pop5[,1], new_pop5[,2])$D
+my_XICOR(new_pop5[,1], new_pop5[,2])
+```
+
+```{r}
+stats::cor(new_pop5, method = "spearman")[1,2]
+my_beta(new_pop5[ ,1], new_pop5[, 2])
+```
+
+```{r}
+my_beta(new_pop5[ ,1], new_pop5[, 2])
+stats::cor(new_pop5, method = "kendall")[1,2]
+```
+
+## very dense stick in the circle
+
+```{r}
+set.seed(230)
+new_lollipop6 <- function(n){
+  t(sapply(1:n, function(i){
+    # generate "cluster" assignment
+    k <- sample(c(1,2), 1)
+    
+    # generate "ball"
+    if(k == 1){
+      x <- stats::rnorm(1, mean = 0, sd = 2)
+      y <- stats::rnorm(1, mean = 0, sd = 2)
+    } else {
+      # k == 2, generate "stick"
+      x <- stats::rnorm(1, mean = 0, sd = 0.5)
+      y <- x + stats::rnorm(1, mean = 0, sd = 0.3)
+    }
+    
+    c(x,y)
+  }))
+}
+```
+
+```{r}
+new_pop6 <- new_lollipop6(600)
+plot(new_pop6)
+```
+
+```{r}
+stats::cor(new_pop6, method = "pearson")[1,2]
+energy::dcor(new_pop6[,1],new_pop6[,2])
+```
+
+```{r}
+my_XICOR(new_pop6[,1], new_pop6[,2])
+stats::cor(new_pop6, method = "spearman")[1,2]
+```
+
+```{r}
+Hmisc::hoeffd(new_pop6[,1], new_pop6[,2])$D
+my_XICOR(new_pop6[,1], new_pop6[,2])
+```
+
+```{r}
+stats::cor(new_pop6, method = "spearman")[1,2]
+my_beta(new_pop6[ ,1], new_pop6[, 2])
+```
+
+```{r}
+my_beta(new_pop6[ ,1], new_pop6[, 2])
+stats::cor(new_pop6, method = "kendall")[1,2]
+```
+
+## multiple clusters in the ball
+
+```{r}
+set.seed(230)
+new_lollipop7 <- function(n){
+  t(sapply(1:n, function(i){
+    # generate "cluster" assignment
+    k <- sample(1:5, 1)
+    
+    # generate "ball"
+    if(k == 1){
+      x <- stats::rnorm(1, mean = 0.5, sd = 0.5)
+      y <- stats::rnorm(1, mean = 0.5, sd = 0.5)
+    } else if (k == 2) {
+      x <- stats::rnorm(1, mean = -0.5, sd = 0.5)
+      y <- stats::rnorm(1, mean = -0.5, sd = 0.5)
+    } else if (k == 3) {
+      x <- stats::rnorm(1, mean = 0.5, sd = 0.5)
+      y <- stats::rnorm(1, mean = -0.5, sd = 0.5)
+    } else if (k == 4) {
+      x <- stats::rnorm(1, mean = -0.5, sd = 0.5)
+      y <- stats::rnorm(1, mean = 0.5, sd = 0.5)
+    } else {
+      # Otherwise, generate "stick"
+      x <- stats::rnorm(1, mean = 1.5, sd = 0.8)
+      y <- x + stats::rnorm(1, mean = 0.5, sd = 0.5)
+    }
+    
+    c(x,y)
+  }))
+}
+```
+
+
+```{r}
+new_pop7 <- new_lollipop7(700)
+plot(new_pop7)
+```
+
+```{r}
+stats::cor(new_pop7, method = "pearson")[1,2]
+energy::dcor(new_pop7[,1],new_pop7[,2])
+```
+
+```{r}
+my_XICOR(new_pop7[,1], new_pop7[,2])
+stats::cor(new_pop7, method = "spearman")[1,2]
+```
+
+```{r}
+Hmisc::hoeffd(new_pop7[,1], new_pop7[,2])$D
+my_XICOR(new_pop7[,1], new_pop7[,2])
+```
+
+```{r}
+stats::cor(new_pop7, method = "spearman")[1,2]
+my_beta(new_pop7[ ,1], new_pop7[, 2])
+```
+
+```{r}
+my_beta(new_pop7[ ,1], new_pop7[, 2])
+stats::cor(new_pop7, method = "kendall")[1,2]
+```
+
+
+## multiple clusters in the ball and more weights on stick than previous one
+
+```{r}
+set.seed(230)
+new_lollipop8 <- function(n){
+  t(sapply(1:n, function(i){
+    # generate "cluster" assignment
+    k <- sample(1:6, 1)
+    
+    # generate "ball"
+    if(k == 1){
+      x <- stats::rnorm(1, mean = 0.5, sd = 0.5)
+      y <- stats::rnorm(1, mean = 0.5, sd = 0.5)
+    } else if (k == 2) {
+      x <- stats::rnorm(1, mean = -0.5, sd = 0.5)
+      y <- stats::rnorm(1, mean = -0.5, sd = 0.5)
+    } else if (k == 3) {
+      x <- stats::rnorm(1, mean = 0.5, sd = 0.5)
+      y <- stats::rnorm(1, mean = -0.5, sd = 0.5)
+    } else if (k == 4) {
+      x <- stats::rnorm(1, mean = -0.5, sd = 0.5)
+      y <- stats::rnorm(1, mean = 0.5, sd = 0.5)
+    } else {
+      # Otherwise, generate "stick"
+      x <- stats::rnorm(1, mean = 1, sd = 1)
+      y <- x + stats::rnorm(1, mean = 0.5, sd = 0.3)
+    }
+    
+    c(x,y)
+  }))
+}
+```
+
+```{r}
+new_pop8 <- new_lollipop8(800)
+plot(new_pop8)
+```
+
+```{r}
+stats::cor(new_pop8, method = "pearson")[1,2]
+energy::dcor(new_pop8[,1],new_pop8[,2])
+```
+
+```{r}
+my_XICOR(new_pop8[,1], new_pop8[,2])
+stats::cor(new_pop8, method = "spearman")[1,2]
+```
+
+```{r}
+Hmisc::hoeffd(new_pop8[,1], new_pop8[,2])$D
+my_XICOR(new_pop8[,1], new_pop8[,2])
+```
+
+```{r}
+stats::cor(new_pop8, method = "spearman")[1,2]
+my_beta(new_pop8[ ,1], new_pop8[, 2])
+```
+
+```{r}
+my_beta(new_pop8[ ,1], new_pop8[, 2])
+stats::cor(new_pop8, method = "kendall")[1,2]
 ```
