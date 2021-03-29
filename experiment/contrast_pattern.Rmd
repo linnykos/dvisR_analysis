@@ -306,7 +306,9 @@ mi.empirical(entropy::discretize2d(as.matrix(quadratic_1[, 1]), as.matrix(quadra
 ```
 
 
-# Explore more about the lollipop
+# 2. Explore more about the lollipop
+
+## 2-1. Original lollipop
 
 ```{r}
 original <- .generate_lollipop
@@ -343,7 +345,7 @@ my_beta(lollipop[, 1], lollipop[, 2])
 stats::cor(lollipop, method = "kendall")[1,2]
 ```
 
-## Three cluster total
+## 2-2. Three clusters in total
 
 ```{r}
 new_lollipop1 <- function(n){
@@ -403,7 +405,7 @@ my_beta(new_pop1[, 1], new_pop1[, 2])
 stats::cor(new_pop1, method = "kendall")[1,2]
 ```
 
-## two cluster that continously connects the circle and stick
+## 2-3. Two clusters that continously connect the circle and stick
 
 ```{r}
 set.seed(10)
@@ -457,7 +459,7 @@ my_beta(new_pop2[,1], new_pop2[,2])
 stats::cor(new_pop2, method = "kendall")[1,2]
 ```
 
-## very long stick
+## 2-4.The lollipop that has a very long stick
 
 ```{r}
 set.seed(15)
@@ -512,7 +514,7 @@ my_beta(new_pop3[,1], new_pop3[,2])
 stats::cor(new_pop3, method = "kendall")[1,2]
 ```
 
-## less longer stick
+## 2-5. The lollipop that has less longer stick
 
 ```{r}
 set.seed(230)
@@ -566,7 +568,7 @@ my_beta(new_pop4[ ,1], new_pop4[, 2])
 stats::cor(new_pop4, method = "kendall")[1,2]
 ```
 
-## less dense stick in the circle
+## 2-6. The lollipop that has less dense stick in the circle
 
 ```{r}
 set.seed(230)
@@ -620,7 +622,7 @@ my_beta(new_pop5[ ,1], new_pop5[, 2])
 stats::cor(new_pop5, method = "kendall")[1,2]
 ```
 
-## very dense stick in the circle
+## 2-7. The lollipop that has very dense stick in the circle
 
 ```{r}
 set.seed(230)
@@ -674,7 +676,7 @@ my_beta(new_pop6[ ,1], new_pop6[, 2])
 stats::cor(new_pop6, method = "kendall")[1,2]
 ```
 
-## multiple clusters in the ball
+## 2-8. The lollipop that has multiple clusters in the ball
 
 ```{r}
 set.seed(230)
@@ -739,7 +741,7 @@ stats::cor(new_pop7, method = "kendall")[1,2]
 ```
 
 
-## multiple clusters in the ball and more weights on stick than previous one
+## 2-9. The lollipop that has multiple clusters in the ball and more weights on stick than previous one
 
 ```{r}
 set.seed(230)
