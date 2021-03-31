@@ -303,10 +303,31 @@ plot(quadratic_1)
 ```{r}
 minerva::mine(quadratic_1)$MIC
 mi.empirical(entropy::discretize2d(as.matrix(quadratic_1[, 1]), as.matrix(quadratic_1[, 2]), numBins1 = 10, numBins2 = 10))
+#minerva::mine(quadrant)$MIC
 ```
 
 
 # 2. Explore more about the lollipop
+
+```{r}
+get_measures <- function(dat){
+  pearson_cor <- stats::cor(dat, method = "pearson")[1,2]
+  spearman_cor <- stats::cor(dat, method = "spearman")[1,2]
+  kendall_cor <- pcaPP::cor.fk(dat)[1,2]
+  dist_cor <- energy::dcor(dat[,1], dat[,2])
+  hoeff_cor <- Hmisc::hoeffd(dat[,1], dat[,2])$D[1,2]
+  
+  MI_cor <- entropy::mi.empirical(entropy::discretize2d(as.matrix(dat[, 1]),
+                                                           as.matrix(dat[, 2]),
+                                                           numBins1 = 10, numBins2 = 10))
+  MIC_cor <- minerva::mine(dat)$MIC[1,2]
+  XICOR_cor <- my_XICOR(dat[,1], dat[,2])
+  HSIC_cor <- dHSIC::dhsic(dat[,1], dat[, 2])$dHSIC
+  beta_cor <- my_beta(dat[, 1], dat[, 2])
+  return(c(pearson_cor, spearman_cor, kendall_cor, dist_cor, hoeff_cor,
+           MI_cor, MIC_cor, XICOR_cor, HSIC_cor, beta_cor))
+}
+```
 
 ## 2-1. Original lollipop
 
@@ -316,39 +337,18 @@ original <- .generate_lollipop
 
 ```{r}
 set.seed(11)
-lollipop <- original(500)
-plot(lollipop)
+lollipop1 <- original(500)
+plot(lollipop1)
 ```
 
 ```{r}
-stats::cor(lollipop, method = "pearson")[1,2]
-energy::dcor(lollipop[,1],lollipop[,2])
-```
-
-```{r}
-my_XICOR(lollipop[,1], lollipop[,2])
-stats::cor(lollipop, method = "spearman")[1,2]
-```
-
-```{r}
-Hmisc::hoeffd(lollipop[,1], lollipop[,2])$D
-my_XICOR(lollipop[,1], lollipop[,2])
-```
-
-```{r}
-stats::cor(lollipop, method = "spearman")[1,2]
-my_beta(lollipop[, 1], lollipop[, 2])
-```
-
-```{r}
-my_beta(lollipop[, 1], lollipop[, 2])
-stats::cor(lollipop, method = "kendall")[1,2]
+lolli1_measure <- get_measures(lollipop1)
 ```
 
 ## 2-2. Three clusters in total
 
 ```{r}
-new_lollipop1 <- function(n){
+new_lollipop2 <- function(n){
   t(sapply(1:n, function(i){
     # generate "cluster" assignment
     k <- sample(1:3, 1)
@@ -376,40 +376,19 @@ new_lollipop1 <- function(n){
 
 ```{r}
 set.seed(10)
-new_pop1 <- new_lollipop1(500)
-plot(new_pop1)
+new_pop2 <- new_lollipop2(500)
+plot(new_pop2)
 ```
 
 ```{r}
-stats::cor(new_pop1, method = "pearson")[1,2]
-energy::dcor(new_pop1[,1],new_pop1[,2])
-```
-
-```{r}
-my_XICOR(new_pop1[,1], new_pop1[,2])
-stats::cor(new_pop1, method = "spearman")[1,2]
-```
-
-```{r}
-Hmisc::hoeffd(new_pop1[,1], new_pop1[,2])$D
-my_XICOR(new_pop1[,1], new_pop1[,2])
-```
-
-```{r}
-stats::cor(new_pop1, method = "spearman")[1,2]
-my_beta(new_pop1[, 1], new_pop1[, 2])
-```
-
-```{r}
-my_beta(new_pop1[, 1], new_pop1[, 2])
-stats::cor(new_pop1, method = "kendall")[1,2]
+lolli2_measure <- get_measures(new_pop2)
 ```
 
 ## 2-3. Two clusters that continously connect the circle and stick
 
 ```{r}
 set.seed(10)
-new_lollipop2 <- function(n){
+new_lollipop3 <- function(n){
   t(sapply(1:n, function(i){
     # generate "cluster" assignment
     k <- sample(1:2, 1)
@@ -430,40 +409,24 @@ new_lollipop2 <- function(n){
 ```
 
 ```{r}
-new_pop2 <- new_lollipop2(500)
-plot(new_pop2)
+new_pop3 <- new_lollipop3(500)
+plot(new_pop3)
 ```
 
 ```{r}
-stats::cor(new_pop2, method = "pearson")[1,2]
-energy::dcor(new_pop2[,1],new_pop2[,2])
+stats::cor(new_pop3, method = "pearson")[1,2]
+energy::dcor(new_pop3[,1],new_pop3[,2])
 ```
 
 ```{r}
-my_beta(new_pop2[,1], new_pop2[,2])
-stats::cor(new_pop2, method = "spearman")[1,2]
-```
-
-```{r}
-Hmisc::hoeffd(new_pop2[,1], new_pop2[,2])$D
-my_beta(new_pop2[,1], new_pop2[,2])
-```
-
-```{r}
-stats::cor(new_pop2, method = "spearman")[1,2]
-my_beta(new_pop2[,1], new_pop2[,2])
-```
-
-```{r}
-my_beta(new_pop2[,1], new_pop2[,2])
-stats::cor(new_pop2, method = "kendall")[1,2]
+lolli3_measure <- get_measures(new_pop3)
 ```
 
 ## 2-4.The lollipop that has a very long stick
 
 ```{r}
 set.seed(15)
-new_lollipop3 <- function(n){
+new_lollipop4 <- function(n){
   t(sapply(1:n, function(i){
     # generate "cluster" assignment
     k <- sample(1:2, 1)
@@ -485,40 +448,19 @@ new_lollipop3 <- function(n){
 ```
 
 ```{r}
-new_pop3 <- new_lollipop3(500)
-plot(new_pop3)
+new_pop4 <- new_lollipop4(500)
+plot(new_pop4)
 ```
 
 ```{r}
-stats::cor(new_pop3, method = "pearson")[1,2]
-energy::dcor(new_pop3[,1],new_pop3[,2])
-```
-
-```{r}
-my_beta(new_pop3[,1], new_pop3[,2])
-stats::cor(new_pop3, method = "spearman")[1,2]
-```
-
-```{r}
-Hmisc::hoeffd(new_pop3[,1], new_pop3[,2])$D
-my_beta(new_pop3[,1], new_pop3[,2])
-```
-
-```{r}
-stats::cor(new_pop3, method = "spearman")[1,2]
-my_beta(new_pop3[,1], new_pop3[,2])
-```
-
-```{r}
-my_beta(new_pop3[,1], new_pop3[,2])
-stats::cor(new_pop3, method = "kendall")[1,2]
+lolli4_measure <- get_measures(new_pop4)
 ```
 
 ## 2-5. The lollipop that has less longer stick
 
 ```{r}
 set.seed(230)
-new_lollipop4 <- function(n){
+new_lollipop5 <- function(n){
   t(sapply(1:n, function(i){
     # generate "cluster" assignment
     k <- sample(c(1,2), 1)
@@ -539,40 +481,19 @@ new_lollipop4 <- function(n){
 ```
 
 ```{r}
-new_pop4 <- new_lollipop4(500)
-plot(new_pop4)
+new_pop5 <- new_lollipop5(500)
+plot(new_pop5)
 ```
 
 ```{r}
-stats::cor(new_pop4, method = "pearson")[1,2]
-energy::dcor(new_pop4[,1],new_pop4[,2])
-```
-
-```{r}
-my_XICOR(new_pop4[,1], new_pop4[,2])
-stats::cor(new_pop4, method = "spearman")[1,2]
-```
-
-```{r}
-Hmisc::hoeffd(new_pop4[,1], new_pop4[,2])$D
-my_XICOR(new_pop4[,1], new_pop4[,2])
-```
-
-```{r}
-stats::cor(new_pop4, method = "spearman")[1,2]
-my_beta(new_pop4[ ,1], new_pop4[, 2])
-```
-
-```{r}
-my_beta(new_pop4[ ,1], new_pop4[, 2])
-stats::cor(new_pop4, method = "kendall")[1,2]
+lolli5_measure <- get_measures(new_pop5)
 ```
 
 ## 2-6. The lollipop that has less dense stick in the circle
 
 ```{r}
 set.seed(230)
-new_lollipop5 <- function(n){
+new_lollipop6 <- function(n){
   t(sapply(1:n, function(i){
     # generate "cluster" assignment
     k <- sample(c(1,2), 1)
@@ -593,40 +514,19 @@ new_lollipop5 <- function(n){
 ```
 
 ```{r}
-new_pop5 <- new_lollipop5(500)
-plot(new_pop5)
+new_pop6 <- new_lollipop6(500)
+plot(new_pop6)
 ```
 
 ```{r}
-stats::cor(new_pop5, method = "pearson")[1,2]
-energy::dcor(new_pop5[,1],new_pop5[,2])
-```
-
-```{r}
-my_XICOR(new_pop5[,1], new_pop5[,2])
-stats::cor(new_pop5, method = "spearman")[1,2]
-```
-
-```{r}
-Hmisc::hoeffd(new_pop5[,1], new_pop5[,2])$D
-my_XICOR(new_pop5[,1], new_pop5[,2])
-```
-
-```{r}
-stats::cor(new_pop5, method = "spearman")[1,2]
-my_beta(new_pop5[ ,1], new_pop5[, 2])
-```
-
-```{r}
-my_beta(new_pop5[ ,1], new_pop5[, 2])
-stats::cor(new_pop5, method = "kendall")[1,2]
+lolli6_measure <- get_measures(new_pop6)
 ```
 
 ## 2-7. The lollipop that has very dense stick in the circle
 
 ```{r}
 set.seed(230)
-new_lollipop6 <- function(n){
+new_lollipop7 <- function(n){
   t(sapply(1:n, function(i){
     # generate "cluster" assignment
     k <- sample(c(1,2), 1)
@@ -647,40 +547,19 @@ new_lollipop6 <- function(n){
 ```
 
 ```{r}
-new_pop6 <- new_lollipop6(600)
-plot(new_pop6)
+new_pop7 <- new_lollipop7(600)
+plot(new_pop7)
 ```
 
 ```{r}
-stats::cor(new_pop6, method = "pearson")[1,2]
-energy::dcor(new_pop6[,1],new_pop6[,2])
-```
-
-```{r}
-my_XICOR(new_pop6[,1], new_pop6[,2])
-stats::cor(new_pop6, method = "spearman")[1,2]
-```
-
-```{r}
-Hmisc::hoeffd(new_pop6[,1], new_pop6[,2])$D
-my_XICOR(new_pop6[,1], new_pop6[,2])
-```
-
-```{r}
-stats::cor(new_pop6, method = "spearman")[1,2]
-my_beta(new_pop6[ ,1], new_pop6[, 2])
-```
-
-```{r}
-my_beta(new_pop6[ ,1], new_pop6[, 2])
-stats::cor(new_pop6, method = "kendall")[1,2]
+lolli7_measure <- get_measures(new_pop7)
 ```
 
 ## 2-8. The lollipop that has multiple clusters in the ball
 
 ```{r}
 set.seed(230)
-new_lollipop7 <- function(n){
+new_lollipop8 <- function(n){
   t(sapply(1:n, function(i){
     # generate "cluster" assignment
     k <- sample(1:5, 1)
@@ -711,41 +590,20 @@ new_lollipop7 <- function(n){
 
 
 ```{r}
-new_pop7 <- new_lollipop7(700)
-plot(new_pop7)
+new_pop8 <- new_lollipop8(700)
+plot(new_pop8)
 ```
 
 ```{r}
-stats::cor(new_pop7, method = "pearson")[1,2]
-energy::dcor(new_pop7[,1],new_pop7[,2])
+lolli8_measure <- get_measures(new_pop8)
+lolli8_measure
 ```
-
-```{r}
-my_XICOR(new_pop7[,1], new_pop7[,2])
-stats::cor(new_pop7, method = "spearman")[1,2]
-```
-
-```{r}
-Hmisc::hoeffd(new_pop7[,1], new_pop7[,2])$D
-my_XICOR(new_pop7[,1], new_pop7[,2])
-```
-
-```{r}
-stats::cor(new_pop7, method = "spearman")[1,2]
-my_beta(new_pop7[ ,1], new_pop7[, 2])
-```
-
-```{r}
-my_beta(new_pop7[ ,1], new_pop7[, 2])
-stats::cor(new_pop7, method = "kendall")[1,2]
-```
-
 
 ## 2-9. The lollipop that has multiple clusters in the ball and more weights on stick than previous one
 
 ```{r}
 set.seed(230)
-new_lollipop8 <- function(n){
+new_lollipop9 <- function(n){
   t(sapply(1:n, function(i){
     # generate "cluster" assignment
     k <- sample(1:6, 1)
@@ -775,31 +633,27 @@ new_lollipop8 <- function(n){
 ```
 
 ```{r}
-new_pop8 <- new_lollipop8(800)
-plot(new_pop8)
+new_pop9 <- new_lollipop9(800)
+plot(new_pop9)
+```
+
+
+```{r}
+lolli9_measure <- get_measures(new_pop9)
 ```
 
 ```{r}
-stats::cor(new_pop8, method = "pearson")[1,2]
-energy::dcor(new_pop8[,1],new_pop8[,2])
+combined_measure <- rbind(lolli1_measure, lolli2_measure, lolli3_measure,
+                          lolli4_measure, lolli5_measure, lolli6_measure,
+                          lolli7_measure, lolli8_measure, lolli9_measure)
+
+rownames(combined_measure) <- 1:9
+colnames(combined_measure) <- c("pearson", "spearman", "kendall", "dist_cor", "hoeff_D",
+                                "MI", "MIC", "XICOR", "HSIC", "Blomq_beta")
+
+combined_measure
 ```
 
 ```{r}
-my_XICOR(new_pop8[,1], new_pop8[,2])
-stats::cor(new_pop8, method = "spearman")[1,2]
-```
-
-```{r}
-Hmisc::hoeffd(new_pop8[,1], new_pop8[,2])$D
-my_XICOR(new_pop8[,1], new_pop8[,2])
-```
-
-```{r}
-stats::cor(new_pop8, method = "spearman")[1,2]
-my_beta(new_pop8[ ,1], new_pop8[, 2])
-```
-
-```{r}
-my_beta(new_pop8[ ,1], new_pop8[, 2])
-stats::cor(new_pop8, method = "kendall")[1,2]
+melt(combined_measure)
 ```
