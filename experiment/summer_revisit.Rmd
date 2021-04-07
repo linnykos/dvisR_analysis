@@ -1,0 +1,309 @@
+---
+title: "summer_revisit"
+author: "Taewan Kim"
+date: "4/7/2021"
+output: 
+    html_document:
+    toc:  true
+    toc_float:  true
+    code_folding:  show
+---
+
+# Import Library & Data
+
+```{r}
+library(reshape2) # melt function
+library(ggplot2) # ggplot function
+library(pcaPP) # Fast Kendall function
+library(energy) # Distance Correlation
+library(Hmisc) # Hoeffding's D measure
+library(entropy) # Mutual Information
+library(minerva) # Maximum Information Coefficient
+library(XICOR) # Chatterjee's Coefficient
+library(dHSIC) # Hilbert Schmidt Independence Criterion
+library(VineCopula) # Blomqvist's Beta
+```
+
+```{r}
+dat <- read.csv("Zeisel_preprocessed.csv", row.names = 1)
+cell_type <- read.table("Zeisel_cell_info.txt", sep = "\t", header = 1)
+
+cluster_labels <- as.numeric(as.factor(cell_type$level1class))
+```
+
+```{r}
+cell_labels <- unique(cell_type$level1class)
+rand_ind <- c()
+
+for (cell in cell_labels){
+  set.seed(10)
+  subcell_ind <- which(cell_type$level1class == cell)
+  sub_rand <- sample(length(subcell_ind),
+                     length(subcell_ind)/10)
+  rand_ind <- c(rand_ind, subcell_ind[sub_rand])
+}
+
+dat_hclust <- hclust(dist(t(dat)))
+dat_index <- dat_hclust$order
+
+
+sub_dat <- dat[rand_ind, dat_index]
+
+sub_celltype <- cell_type[rand_ind, ]
+sub_cluster_labels <- as.numeric(as.factor(sub_celltype$level1class))
+```
+
+# Get Meaingful Indices
+
+```{r}
+meaningful_ind <- matrix(c(655, 1217, 1978, 674, 1992, 1222, 1704, 1061, 1249, 509,
+                           174, 1189, 523, 148, 1975, 1197, 978, 97, 674, 104),
+                         ncol = 2)
+```
+
+# Define Functions
+
+```{r}
+my_beta <- function(x, y){
+    # following Blomqvist, N. (1950).  On a measure of dependence between two
+    # random variables. The Annals of Mathematical Statistics, 21(4), 593-600.
+    mx <- median(x); my <- median(y)
+    n1 <- sum(x < mx & y > my) +  sum(x > mx & y < my)
+    n2 <- sum(x < mx & y < my) +  sum(x > mx & y > my)
+    
+    return ((n1 - n2)/(n1 + n2))
+ 
+}
+
+my_XICOR <- function(x, y){
+  return(max(XICOR::calculateXI(x,y), XICOR::calculateXI(y,x)))
+}
+
+get_measures <- function(dat){
+  pearson_cor <- stats::cor(dat, method = "pearson")[1,2]
+  spearman_cor <- stats::cor(dat, method = "spearman")[1,2]
+  kendall_cor <- pcaPP::cor.fk(dat)[1,2]
+  dist_cor <- energy::dcor(dat[,1], dat[,2])
+  hoeff_cor <- Hmisc::hoeffd(dat[,1], dat[,2])$D[1,2]
+  
+  #MI_cor <- entropy::mi.empirical(entropy::discretize2d(as.matrix(dat[, 1]),
+  #                                                         as.matrix(dat[, 2]),
+  #                                                         numBins1 = 10, numBins2 = 10))
+  #MIC_cor <- minerva::mine(dat)$MIC[1,2]
+  XICOR_cor <- my_XICOR(dat[,1], dat[,2])
+  HSIC_cor <- dHSIC::dhsic(dat[,1], dat[, 2])$dHSIC
+  beta_cor <- my_beta(dat[, 1], dat[, 2])
+  return(c(pearson_cor, spearman_cor, kendall_cor, dist_cor,
+           hoeff_cor, XICOR_cor, HSIC_cor, beta_cor))
+}
+
+draw_plot_cal_corr <- function(sub_dat, ind_mat, nth){
+  index1 <- ind_mat[nth, 1]; index2 <- ind_mat[nth, 2]
+  
+  x <- sub_dat[,index1]; y <- sub_dat[,index2]
+  plot(x, y, col = sub_cluster_labels, asp = T,
+       pch = 16, xlab = paste0(colnames(sub_dat)[index1], ", (", index1, ")"),
+       ylab = paste0(colnames(sub_dat)[index2], ", (", index2, ")"))
+  cur_measures <- get_measures(cbind(x,y))
+
+  return(cur_measures)
+}
+```
+
+# Calculate dependency measures for all the pairs
+
+```{r}
+all_corr <- c()
+for (i in 1:10) {
+  cur_corr <- draw_plot_cal_corr(sub_dat, meaningful_ind, i)
+  all_corr <- rbind(all_corr, cur_corr)
+}
+
+rownames(all_corr) <- 1:10
+colnames(all_corr) <- c("pearson", "spearman", "kendall", "dist_cor",
+                        "hoeff_D", "XICOR", "HSIC", "Blomq_beta")
+
+```
+
+## First pair
+
+```{r}
+index1 <- meaningful_ind[1, 1]; index2 <- meaningful_ind[1, 2]
+
+plot(sub_dat[,index1], sub_dat[,index2], col = sub_cluster_labels, asp = T,
+      pch = 16, xlab = paste0(colnames(sub_dat)[index1], ", (", index1, ")"),
+      ylab = paste0(colnames(sub_dat)[index2], ", (", index2, ")"),
+      main = paste(paste0("Spearman of ", round(all_corr[1, 2], 3)),
+                   "\n",
+                   paste0("Pearson of ", round(all_corr[1, 1], 3)),
+                   " ",
+                   paste0("Hoeff_D of ", round(all_corr[1, 5], 3))))
+```
+
+## Second Pair
+
+```{r}
+index1 <- meaningful_ind[2, 1]; index2 <- meaningful_ind[2, 2]
+
+plot(sub_dat[,index1], sub_dat[,index2], col = sub_cluster_labels, asp = T,
+      pch = 16, xlab = paste0(colnames(sub_dat)[index1], ", (", index1, ")"),
+      ylab = paste0(colnames(sub_dat)[index2], ", (", index2, ")"),
+      main = paste(paste0("Pearson of ", round(all_corr[2, 1], 3)),
+                   " ",
+                   paste0("Dist Cor of ", round(all_corr[2, 4], 3)),
+                   "\n",
+                   paste0("Spearman of ", round(all_corr[2, 2], 3)),
+                   " ",
+                   paste0("Kendall of ", round(all_corr[2, 3], 3)),
+                   " ", 
+                   paste0("XICOR of ", round(all_corr[2,6], 3))))
+
+```
+
+## Third Pair
+
+```{r}
+index1 <- meaningful_ind[3, 1]; index2 <- meaningful_ind[3, 2]
+
+plot(sub_dat[,index1], sub_dat[,index2], col = sub_cluster_labels, asp = T,
+      pch = 16, xlab = paste0(colnames(sub_dat)[index1], ", (", index1, ")"),
+      ylab = paste0(colnames(sub_dat)[index2], ", (", index2, ")"),
+      main = paste(paste0("Pearson of ", round(all_corr[3, 1], 3)),
+                   "\n",
+                   paste0("Spearman of ", round(all_corr[3, 2], 3)),
+                   " ",
+                   paste0("Beta of ", round(all_corr[3, 8], 3)),
+                   " ", 
+                   paste0("XICOR of ", round(all_corr[3,6], 3))))
+
+```
+
+## Fourth Pair
+
+```{r}
+index1 <- meaningful_ind[4, 1]; index2 <- meaningful_ind[4, 2]
+
+plot(sub_dat[,index1], sub_dat[,index2], col = sub_cluster_labels, asp = T,
+      pch = 16, xlab = paste0(colnames(sub_dat)[index1], ", (", index1, ")"),
+      ylab = paste0(colnames(sub_dat)[index2], ", (", index2, ")"),
+      main = paste(paste0("Pearson of ", round(all_corr[4, 1], 3)),
+                   " ",
+                   paste0("Hoeff D of ", round(all_corr[4, 5], 3)),
+                   "\n",
+                   paste0("Spearman of ", round(all_corr[4, 2], 3)),
+                   " ",
+                   paste0("Beta of ", round(all_corr[4,8], 3))))
+
+```
+
+## Fifth Pair
+
+```{r}
+index1 <- meaningful_ind[5, 1]; index2 <- meaningful_ind[5, 2]
+
+plot(sub_dat[,index1], sub_dat[,index2], col = sub_cluster_labels, asp = T,
+      pch = 16, xlab = paste0(colnames(sub_dat)[index1], ", (", index1, ")"),
+      ylab = paste0(colnames(sub_dat)[index2], ", (", index2, ")"),
+      main = paste(paste0("Pearson of ", round(all_corr[5, 1], 3)),
+                   " ",
+                   paste0("Dist Cor of ", round(all_corr[5, 4], 3)),
+                   "\n",
+                   paste0("Spearman of ", round(all_corr[5, 2], 3)),
+                   " ",
+                   paste0("Beta of ", round(all_corr[5, 8], 3)),
+                   " ", 
+                   paste0("XICOR of ", round(all_corr[5,6], 3))))
+
+```
+
+## Sixth Pair
+
+```{r}
+index1 <- meaningful_ind[6, 1]; index2 <- meaningful_ind[6, 2]
+
+plot(sub_dat[,index1], sub_dat[,index2], col = sub_cluster_labels, asp = T,
+      pch = 16, xlab = paste0(colnames(sub_dat)[index1], ", (", index1, ")"),
+      ylab = paste0(colnames(sub_dat)[index2], ", (", index2, ")"),
+      main = paste(paste0("Pearson of ", round(all_corr[6, 1], 3)),
+                   " ",
+                   paste0("Dist Cor of ", round(all_corr[6, 4], 3)),
+                   "\n",
+                   paste0("Spearman of ", round(all_corr[6, 2], 3)),
+                   " ",
+                   paste0("Hoeff D of ", round(all_corr[6, 5], 3)),
+                   " ", 
+                   paste0("XICOR of ", round(all_corr[6,6], 3))))
+
+```
+
+## Seventh Pair
+
+```{r}
+index1 <- meaningful_ind[7, 1]; index2 <- meaningful_ind[7, 2]
+
+plot(sub_dat[,index1], sub_dat[,index2], col = sub_cluster_labels, asp = T,
+      pch = 16, xlab = paste0(colnames(sub_dat)[index1], ", (", index1, ")"),
+      ylab = paste0(colnames(sub_dat)[index2], ", (", index2, ")"),
+      main = paste(paste0("Spearman of ", round(all_corr[7, 2], 3)),
+                   " ",
+                   paste0("Beta of ", round(all_corr[7, 8], 3)),
+                   "\n",
+                   paste0("Hoeff D of ", round(all_corr[7, 5], 3))))
+
+```
+
+## Eighth Pair
+
+```{r}
+index1 <- meaningful_ind[8, 1]; index2 <- meaningful_ind[8, 2]
+
+plot(sub_dat[,index1], sub_dat[,index2], col = sub_cluster_labels, asp = T,
+      pch = 16, xlab = paste0(colnames(sub_dat)[index1], ", (", index1, ")"),
+      ylab = paste0(colnames(sub_dat)[index2], ", (", index2, ")"),
+      main = paste(paste0("Kendall of ", round(all_corr[8, 3], 3)),
+                   " ",
+                   paste0("Hoeff D of ", round(all_corr[8, 5], 3)),
+                   " ",
+                   paste0("Beta of ", round(all_corr[8, 8], 3)),
+                   "\n",
+                   paste0("XICOR of ", round(all_corr[8,6], 3)),
+                   " ",
+                   paste0("Dist Cor of ", round(all_corr[8,4], 3))))
+
+```
+
+## Nineth Pair
+
+```{r}
+index1 <- meaningful_ind[9, 1]; index2 <- meaningful_ind[9, 2]
+
+plot(sub_dat[,index1], sub_dat[,index2], col = sub_cluster_labels, asp = T,
+      pch = 16, xlab = paste0(colnames(sub_dat)[index1], ", (", index1, ")"),
+      ylab = paste0(colnames(sub_dat)[index2], ", (", index2, ")"),
+      main = paste(paste0("Hoeff D of ", round(all_corr[9, 5], 3)),
+                   " ",
+                   paste0("Beta of ", round(all_corr[9, 8], 3)),
+                   "\n",
+                   paste0("Spearman of ", round(all_corr[9, 2], 3))))
+
+```
+
+## Tenth Pair
+
+```{r}
+index1 <- meaningful_ind[10, 1]; index2 <- meaningful_ind[10, 2]
+
+plot(sub_dat[,index1], sub_dat[,index2], col = sub_cluster_labels, asp = T,
+      pch = 16, xlab = paste0(colnames(sub_dat)[index1], ", (", index1, ")"),
+      ylab = paste0(colnames(sub_dat)[index2], ", (", index2, ")"),
+      main = paste(paste0("Pearson of ", round(all_corr[10, 1], 3)),
+                   " ",
+                   paste0("Spearman of ", round(all_corr[10, 2], 3)),
+                   " ",
+                   paste0("Dist Cor of ", round(all_corr[10, 4], 3)),
+                   "\n",
+                   paste0("Hoeff D of ", round(all_corr[10, 5], 3))))
+
+```
+
+
