@@ -1,7 +1,7 @@
 ---
 title: "Lollipop_Explore2"
 author: "Taewan Kim"
-date: "4/15/2021"
+date: "4/28/2021"
 output: 
     html_document:
     toc:  true
@@ -31,7 +31,7 @@ my_beta <- function(x, y){
     n1 <- sum(x < mx & y > my) +  sum(x > mx & y < my)
     n2 <- sum(x < mx & y < my) +  sum(x > mx & y > my)
     
-    return ((n1 - n2)/(n1 + n2))
+    return ((n2 - n1)/(n1 + n2))
  
 }
 
@@ -87,6 +87,12 @@ lollipop1 <- new_lollipop1(500)
 plot(lollipop1)
 ```
 
+- The plot above has three separate clusters that the first one is a ball, the second one is ball that connects the previous ball with the stick, which is the last cluster.
+- From the plot, it seems that there is a linear relationship among the two variables, meaning that it would have high value of pearson's correlation and XICOR.
+- Another clear relationship from the above plot is that the data seems to increase monotonically, so it would have high values of rank correlations, such as kendall's, spearman's, and hoeffding's D.
+- Lastly, there is a compact ball in the middle of the plot, so distance correlation would be also high.
+
+
 ```{r}
 new_lollipop2 <- function(n){
   t(sapply(1:n, function(i){
@@ -120,6 +126,10 @@ lollipop2 <- new_lollipop2(500)
 plot(lollipop2)
 ```
 
+- Lollipop2 has a bit strange shape, contrast to the above example. There is a ball around (0,0); then the ball has two sticks to make a v-shaped.
+- Due to the ball located at around (0,0), it would have high value of distance correlation. Also, it might be weaker than that in lollipop1, but it seems to have a linear relationship. Therefore, I expect it has high value of Pearson's correlation.
+- I am unsure, but I think v-shaped plot would have low value of rank correlations because the two line would hinder from having strong rank correlations (kendall's, spearman's, and hoeffding's D)
+
 ```{r}
 new_lollipop3 <- function(n){
   t(sapply(1:n, function(i){
@@ -147,6 +157,11 @@ lollipop3 <- new_lollipop3(500)
 plot(lollipop3)
 ```
 
+- This plot has only one condensed ball on around (0,0), with some few points from the ball (possibly considering them as outliers..)
+- As a result of compact ball, it has high, very high value of distance correlation.
+- It could take the data shape as linear relationship because of some points on the right top. It might have relatively high value of Pearson's correlation.
+- However, it is hard for us to find there is a strong relationship in this plot; therefore, I would guess it has very low value of  XICOR. Also, most of the points form the ball, so I would think that it is hard to form a strong rank-based relationship. (kendall's, spearman's, and hoeffding's D)
+
 ```{r}
 new_lollipop4 <- function(n){
   t(sapply(1:n, function(i){
@@ -173,6 +188,11 @@ new_lollipop4 <- function(n){
 lollipop4 <- new_lollipop4(500)
 plot(lollipop4)
 ```
+
+- This plot has only one condensed but more horizontally scattered ball on around (0,0), with some few points from the ball scattered farther and longer from the ball. (possibly considering them as outliers..)
+- As a result of compact ball, it seems to have high, very high value of distance correlation.
+- It could take the data shape as linear relationship because of some points on the right top. It might have relatively high value of Pearson's correlation.
+- However, it is hard for us to find there is a strong relationship in this plot; therefore, I would guess it has very low value of XICOR. Also, most of the points form the ball, so I would think that it is hard to form a strong rank-based relationship. (kendall's, spearman's, and hoeffding's D)
 
 ```{r}
 new_lollipop5 <- function(n){
@@ -210,6 +230,11 @@ new_lollipop5 <- function(n){
 lollipop5 <- new_lollipop5(500)
 plot(lollipop5)
 ```
+
+- Lollipop5 has a similar pattern as previous ones; it has a big and condensed circle at around (0, 0). However, the ball is vertically scattered.
+- Similar to the previous ones, it has a condensed ball. Therefore, I expect that it has high value of distance correlation. This would have a relatively high value of Pearson's correlation with identical reason in lollipop4, but it has two sticks, undermining the strength of linear relationship. 
+- I think v-shaped plot would have low value of rank correlations because the two line would hinder from having strong rank correlations (kendall's, spearman's, and hoeffding's D)
+- This one does not have a strong relationship because it does not form a specific shape. Therefore, I expect that this one has low XICOR.
 
 ```{r}
 new_lollipop6 <- function(n){
@@ -250,6 +275,12 @@ lollipop6 <- new_lollipop6(500)
 plot(lollipop6)
 ```
 
+- Lollipop6 still has a condensed ball on around (0,0). This time it has one cluster with different mean setting.
+- This one also has high value of distance correlation because of its condensed ball. However, it undermines the strength of linear relationship because of longer bottom line. Also, it does not depict a strong relationship between two variables, meaning that XICOR would be low.
+- Because of dense ball, it would have low value of rank correlations.
+
+
+
 ```{r}
 new_lollipop7 <- function(n){
   t(sapply(1:n, function(i){
@@ -285,6 +316,12 @@ new_lollipop7 <- function(n){
 lollipop7 <- new_lollipop7(500)
 plot(lollipop7)
 ```
+
+- Lollipop7 has a bit different shape from lollipop6; it has two clusters in the ball with identical sticks.
+- Because the clusters in the ball has a bit tilted, so it looks more linear than previous. Therefore, it would have high value of Pearson's correlation.
+- Rank may explain the relationship between two variables more than before, but it might not be meaningful enough.
+- Still, the ball is dense, meaning that it will have high value of distance correlation.
+
 
 ```{r}
 new_lollipop8 <- function(n){
@@ -322,7 +359,8 @@ lollipop8 <- new_lollipop8(500)
 plot(lollipop8)
 ```
 
-
+- For this lollipop, I did a bit different experiment. Rather having a big and condensed ball, this one has two sticks. One stick absorbs the ball, and the other one is a bit apart. 
+- I think this one has lower value of distance correlation because the ball is not condense enough. Also, there are two sticks which direct toward different orientations. Therefore, it would have lower value of Pearson's correlation.
 
 ```{r}
 all_corr <- c()
@@ -453,16 +491,18 @@ plot(lollipop_lst[[7]],
 # x <- lollipop1[,1]; y <- lollipop1[,1];
 # bandwidth <- 1
 # 
-X <- list(x, y)
-X <- split(X, rep(1:ncol(X), each = nrow(X)))
-
+# X <- cbind(x, y)
+# X <- split(X, rep(1:ncol(X), each = nrow(X)))
 # 
-d <- length(X)
-for(j in 1:d){
-  if(is.matrix(X[[j]])==FALSE){
-    X[[j]] <- as.matrix(X[[j]])
-  }
-}
+# # 
+# d <- length(X)
+# for(j in 1:d){
+#   if(is.matrix(X[[j]])==FALSE){
+#     X[[j]] <- as.matrix(X[[j]])
+#   }
+# }
+
+# X
 # 
 # len <- nrow(X[[1]])
 # kernel <- "gaussian"
@@ -489,6 +529,6 @@ for(j in 1:d){
 
 
 
-dHSIC::dhsic(X = x, Y =y, kernel = "gaussian")
-dHSIC::dhsic(cbind(x, y), kernel = "gaussian", matrix.input = T)
+# dHSIC::dhsic(X = x, Y =y, kernel = "gaussian")
+# dHSIC::dhsic(cbind(x, y), kernel = "gaussian", matrix.input = T)
 ```
