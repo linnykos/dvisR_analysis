@@ -1,7 +1,7 @@
 ---
 title: "contrast_pattern"
 author: "Taewan Kim"
-date: "5/6/2021"
+date: "5/26/2021"
 output: html_document
 ---
 
@@ -136,7 +136,7 @@ new_lollipop1 <- function(n){
 ```
 
 ```{r}
-lollipop1 <- new_lollipop1(500)
+lollipop1 <- new_lollipop1(50)
 plot(lollipop1)
 ```
 
@@ -144,6 +144,7 @@ plot(lollipop1)
 ## MY HSIC fun
 
 ```{r}
+library(gtools)
 gaussian_kernel <- function(u, v){
   1/sqrt(2*pi) * exp(-1/2 * (u^2 + v^2))
 }
@@ -153,67 +154,52 @@ x <- lollipop1[,1]; y <- lollipop1[,2];
 term1 <- function(x, y){
   sum <- 0
   len <- length(x)
-    
-  for (i in 1:len){
-    for (j in (i:len)){
+
+  for (i in 1:(len-1)){
+    for (j in ((i+1):len)){
       if (i == j){
         next
       }
-      sum = sum + gaussian_kernel(x[i], x[j]) * gaussian_kernel(y[i], y[j])
+      sum = sum + (gaussian_kernel(x[i], x[j]) * gaussian_kernel(y[i], y[j]))
     }
   }
-  ans = sum / choose(len,2)
+  ans = (sum / choose(len, 2))
   return (ans)
 }
 
 term2 <- function(x, y){
-  sum1 <- 0; sum2 <- 0;
+  sum <- 0
   len <- length(x)
   
-  for (i in 1:len){
-    for (j in (i:len)){
-      sum1 <- sum1 + gaussian_kernel(x[i], x[j])
-    }
+  permu <- gtools::permutations(n=len,r=4,v=(1:len))
+  row_len <- nrow(permu)
+  
+  for (ind in 1:row_len){
+    cur_permu <- permu[ind, ]
+    i <- cur_permu[1]; j <- cur_permu[2]; q <- cur_permu[3]; r <- cur_permu[4];
+    sum <- sum + (gaussian_kernel(x[i], x[j]) * gaussian_kernel(y[q], y[r]))
   }
   
-  for (i in 1:len){
-    for (j in (i:len)){
-      sum2 <- sum2 + gaussian_kernel(y[i], y[j])
-    }
-  }
-  
-  ans = (sum1/ choose(len,2)) * (sum2/choose(len,2))
+  ans <- (sum / choose(len, 4))
   
   return (ans)
 }
 
 term3 <- function(x, y){
-  total <- 0
+  sum <- 0
   len <- length(x)
   
-  for (i in 1:len){
-    for (ii in 1:len){
-      sum1 <- 0; sum2 <- 0;
-      
-      for (j in 1:len){
-        if (i == j){
-          next
-        }
-        sum1 <- sum1 + gaussian_kernel(x[i], x[j])
-      }
-      
-      for (jj in 1:len){
-        if (ii == jj){
-          next
-        }
-        sum2 <- sum2 + gaussian_kernel(y[ii], y[jj])
-      }
-      
-      total <- total + (sum1 / (len - 1)) * (sum2 / (len-1))
-    }
-  }
+  permu <- gtools::permutations(n=len,r=3,v=(1:len))
+  row_len <- nrow(permu)
   
-  total <- total / (len^2)
+  for (ind in 1:row_len){
+    cur_permu <- permu[ind, ]
+    i <- cur_permu[1]; j <- cur_permu[2]; q <- cur_permu[3];
+    sum <- sum + (gaussian_kernel(x[i], x[j]) * gaussian_kernel(y[i], y[q]))
+  }
+  ans <- (sum / choose(len, 3))
+  
+  return (ans)
 }
 
 my_HSIC <- function(x,y){
@@ -223,9 +209,47 @@ my_HSIC <- function(x,y){
 
 
 ```{r}
-myfun_HSIC <- my_HSIC(x,y)
+first <- term1(x,y)
+first
+```
+
+```{r}
+second <- term2(x,y)
+second
+```
+
+```{r}
+third <- term3(x,y)
+third
+```
+
+```{r}
+myfun_HSIC <- term1(x,y) + term2(x,y) - 2*term3(x,y)
 package_HSIC <- dHSIC::dhsic(x,y)$dHSIC
 
 print(myfun_HSIC)
 print(package_HSIC)
+```
+
+
+```{r}
+len <- 5
+sum <- 0
+for (i in 1:len){
+  for (j in 1:len){
+      if (i != j){
+        for (q in 1:len){
+          if (q != i & q != j){
+            for (r in 1:len){
+              if (r != q & r != j & r != i){
+                sum <- sum + 1
+            }
+          }
+        }
+      }
+    }
+  }
+}
+
+sum
 ```
