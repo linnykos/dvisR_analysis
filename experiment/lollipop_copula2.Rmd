@@ -1,7 +1,7 @@
 ---
 title: "Lollipop2"
 author: "Taewan Kim"
-date: "5/26/2021"
+date: "6/7/2021"
 output:
     html_document:
     toc:  true
@@ -14,14 +14,13 @@ output:
 ## 1-1. First cell type
 
 ```{r}
-
 p <- 10
-first_n <- 200
-copula_mean_first <- c(0, 0, 0, 0, 0,
-                       0, 0, 0, 0, 0) # mu
+first_n <- 150
+copula_mean_first <- c(0, 4, 4, 2, 0,
+                       4, 0, 2, 0, 2) # mu
 cov_mat_first <- matrix(0, p, p); 
-diag(cov_mat_first) <- c(3, 3, 2.5, 3.8, 3,
-                         3, 4, 3.5, 3, 2.8)
+diag(cov_mat_first) <- c(4, 1, 4, 2, 2,
+                         2, 1, 1, 4, 1)
 
 set.seed(10)
 norm_first <- MASS::mvrnorm(first_n, copula_mean_first, cov_mat_first)
@@ -38,11 +37,11 @@ pairs(copula_first, asp = T, pch = 16,  col = rgb(0.5,0.5,0.5,0.5), lower.panel 
 
 ```{r}
 second_n <- 250
-copula_mean_second <- c(2.5, 2.5, 2.5, 2.1, 2.5, 
-                       2.3, 2, 2.4, 2.6, 2.5)
-cov_mat_second <- matrix(2, p, p);
-diag(cov_mat_second) <- c(2.5, 2.4, 2.5, 2.5, 2.6,
-                          2.3, 2.5, 2.5, 2.2, 2.3) # Sigma
+copula_mean_second <- c(4, 5, 5, 4, 4, 
+                       5, 4, 5, 4, 4)
+cov_mat_second <- matrix(3, p, p);
+diag(cov_mat_second) <- c(3, 4, 3, 3.2, 4,
+                          3.5, 3.5, 4, 3.8, 3.4) # Sigma
 
 set.seed(10)
 norm_second <- MASS::mvrnorm(second_n, copula_mean_second, cov_mat_second)
@@ -56,12 +55,34 @@ pairs(norm_second, asp = T, pch = 16,  col = rgb(0.5,0.5,0.5,0.5), lower.panel =
 pairs(copula_second, asp = T, pch = 16,  col = rgb(0.5,0.5,0.5,0.5), lower.panel = NULL)
 ```
 
+## 1-3. third cell type
 
-## 1-3. Combine the two cell types
+```{r}
+third_n <- 100
+copula_mean_third <- c(4, 0, 4, 0, 4, 
+                       0, 4, 0, 4, 0)
+cov_mat_third <- matrix(0, p, p);
+diag(cov_mat_third) <- c(1, 4, 1, 2, 2,
+                         1, 4, 4, 1, 4) # Sigma
+
+set.seed(10)
+norm_third <- MASS::mvrnorm(third_n, copula_mean_third, cov_mat_third)
+copula_third <- norm_third
+# nonparanormal transform
+copula_third <- apply(copula_third, 2, function(x) {0.6 * sign(x) * abs(x)^1.4})
+norm_expr <- MASS::mvrnorm(third_n, copula_mean_third, cov_mat_third)
+# this is the gaussian data we need to make nonparanormals
+pairs(norm_third, asp = T, pch = 16,  col = rgb(0.5,0.5,0.5,0.5), lower.panel = NULL)
+# this is the nonparanormal 
+pairs(copula_third, asp = T, pch = 16,  col = rgb(0.5,0.5,0.5,0.5), lower.panel = NULL)
+```
+
+## 1-4. Combine the three cell types
 
 ```{r}
 full_dat <- rbind(cbind(copula_first, rep(1, first_n)), 
-                 cbind(copula_second, rep(2, second_n)))
+                  cbind(copula_second, rep(2, second_n)),
+                  cbind(copula_third, rep(3, third_n)))
 
 gen_dat <- full_dat[, 1:10]
 gen_label <- full_dat[, 11]
@@ -236,41 +257,42 @@ cor_MI_mat <- cormat_list[[7]]; cor_XI_mat <- cormat_list[[8]];
 ```
 
 
-## 3-1. Find contrast characteristics among the correlation coefficients above
 
-## 3-1-1. high pearson (> 0.70) and low distance correlation (< 0.35) (linearity vs Non-linearity)
+# 3. Find contrast characteristics among the correlation coefficients above
+
+## 3-1-1. high pearson and low spearman (linearity vs monotone)
 
 ```{r}
-cor_contrast1 <- (abs(cor_pearson_mat) > 0.70) & (abs(cor_dist_mat) < 0.35)
+cor_contrast1 <- (abs(cor_pearson_mat) > 0.6) & (abs(cor_spearman_mat) < 0.5)
 cor_contrast_ind1 <- which(cor_contrast1, arr.ind = T)
 nrow(cor_contrast_ind1)
 ```
 
-## 3-1-2. Visualization of high pearson (> 0.70) and low distance correlation (< 0.35) (linearity vs Non-linearity)
+## 3-1-2. Visualization of high pearson and low spearman (linearity vs monotone)
 
 ```{r}
-par(mfrow = c(2, 4))
+par(mfrow = c(2, 5))
 
 for (i in 1:nrow(cor_contrast_ind1)){
    index1 <- cor_contrast_ind1[i, 1]; index2 <- cor_contrast_ind1[i, 2]
    plot(gen_dat[,index1], gen_dat[,index2], col = gen_label, asp = T,
       pch = 16, xlab = paste0(colnames(gen_dat)[index1], ", (", index1, ")"),
-      ylab = paste0(colnames(gen_dat)[index2], ", (", index2, ")"),
+      ylab = paste0(colnames(gen_dat)[index2], ", (", index2, ")"), 
       main = paste(paste0("Pearson of ", round(cor_pearson_mat[index1, index2], 3)),
                    "\n",
-                   paste0("Dist.Cor of ", round(cor_dist_mat[index1, index2], 3))))
+                   paste0("Spearman of ", round(cor_spearman_mat[index1, index2], 3))))
 }
 ```
 
-## 3-2-1. High Pearson (> 0.7) and low XI (< 0.35) (linearity vs distance)
+## 3-2-1. high pearson and low distance correlation (linearity vs Non-linearity)
 
 ```{r}
-cor_contrast2 <- (abs(cor_pearson_mat) > 0.7) & (abs(cor_XI_mat) < 0.35)
+cor_contrast2 <- (abs(cor_pearson_mat) > 0.7) & (abs(cor_dist_mat) < 0.35)
 cor_contrast_ind2 <- which(cor_contrast2, arr.ind = T)
 nrow(cor_contrast_ind2)
 ```
 
-## 3-2-2. Visualization of high Pearson (> 0.7) and low XI (< 0.35) (linearity vs distance)
+## 3-3-2. Visualization of high pearson and low distance correlation (linearity vs Non-linearity)
 
 ```{r}
 par(mfrow = c(2, 3))
@@ -279,33 +301,130 @@ for (i in 1:nrow(cor_contrast_ind2)){
    index1 <- cor_contrast_ind2[i, 1]; index2 <- cor_contrast_ind2[i, 2]
    plot(gen_dat[,index1], gen_dat[,index2], col = gen_label, asp = T,
       pch = 16, xlab = paste0(colnames(gen_dat)[index1], ", (", index1, ")"),
-      ylab = paste0(colnames(gen_dat)[index2], ", (", index2, ")"),
+      ylab = paste0(colnames(gen_dat)[index2], ", (", index2, ")"), 
+      main = paste(paste0("Pearson of ", round(cor_pearson_mat[index1, index2], 3)),
+                   "\n",
+                   paste0("Dist.Cor of ", round(cor_dist_mat[index1, index2], 3))))
+}
+```
+
+## 3-4-1. High Pearson and low XI
+
+```{r}
+cor_contrast4 <- (abs(cor_pearson_mat) > 0.6) & (abs(cor_XI_mat) < 0.4)
+cor_contrast_ind4 <- which(cor_contrast4, arr.ind = T)
+nrow(cor_contrast_ind4)
+```
+
+## 3-4-2. Visualization of high Pearson and low XI
+
+```{r}
+par(mfrow = c(2, 4))
+
+for (i in 1:nrow(cor_contrast_ind4)){
+   index1 <- cor_contrast_ind4[i, 1]; index2 <- cor_contrast_ind4[i, 2]
+   plot(gen_dat[,index1], gen_dat[,index2], col = gen_label, asp = T,
+      pch = 16, xlab = paste0(colnames(gen_dat)[index1], ", (", index1, ")"),
+      ylab = paste0(colnames(gen_dat)[index2], ", (", index2, ")"), 
       main = paste(paste0("Pearson of ", round(cor_pearson_mat[index1, index2], 3)),
                    "\n",
                    paste0("XI of ", round(cor_XI_mat[index1, index2], 3))))
 }
 ```
 
-## 3-3-1. High Pearson (> 0.7) and low Blomqvist's beta (< 0.45) (linearity vs monotone)
+
+## 3-5-1. High Pearson (> 0.5) and low Blomqvist's beta (< 0.5) (linearity vs monotone)
 
 ```{r}
-cor_contrast3 <- (abs(cor_pearson_mat) > 0.7) & (abs(cor_blomqvist_mat) < 0.45)
-cor_contrast_ind3 <- which(cor_contrast3, arr.ind = T)
-nrow(cor_contrast_ind3)
+cor_contrast5 <- (abs(cor_pearson_mat) > 0.6) & (abs(cor_blomqvist_mat) < 0.4)
+cor_contrast_ind5 <- which(cor_contrast5, arr.ind = T)
+nrow(cor_contrast_ind5)
 ```
 
-## 3-3-2. Visualization of High Pearson (> 0.7) and low Blomqvist's beta (< 0.45) (linearity vs monotone)
+## 3-5-2. Visualization of High Pearson (> 0.5) and low Blomqvist's beta (< 0.1) (linearity vs monotone)
 
 ```{r}
-par(mfrow = c(2, 3))
+par(mfrow = c(1, 2))
 
-for (i in 1:nrow(cor_contrast_ind3)){
-   index1 <- cor_contrast_ind3[i, 1]; index2 <- cor_contrast_ind3[i, 2]
+for (i in 1:nrow(cor_contrast_ind5)){
+   index1 <- cor_contrast_ind5[i, 1]; index2 <- cor_contrast_ind5[i, 2]
    plot(gen_dat[,index1], gen_dat[,index2], col = gen_label, asp = T,
       pch = 16, xlab = paste0(colnames(gen_dat)[index1], ", (", index1, ")"),
-      ylab = paste0(colnames(gen_dat)[index2], ", (", index2, ")"),
+      ylab = paste0(colnames(gen_dat)[index2], ", (", index2, ")"), 
       main = paste(paste0("Pearson of ", round(cor_pearson_mat[index1, index2], 3)),
                    "\n",
                    paste0("Beta of ", round(cor_blomqvist_mat[index1, index2], 3))))
+}
+```
+
+## 3-6-1. high kendall and low Distance Correlation (monotone vs non-linearity)
+
+```{r}
+cor_contrast6 <- (abs(cor_kendall_mat) > 0.6) & (abs(cor_dist_mat) < 0.4)
+cor_contrast_ind6 <- which(cor_contrast6, arr.ind = T)
+nrow(cor_contrast_ind6)
+```
+
+## 3-6-2. Visualization of high kendall and low Distance Correlation (monotone vs non-linearity)
+
+```{r}
+par(mfrow = c(2, 2))
+
+for (i in 1:nrow(cor_contrast_ind6)){
+   index1 <- cor_contrast_ind6[i, 1]; index2 <- cor_contrast_ind6[i, 2]
+   plot(gen_dat[,index1], gen_dat[,index2], col = gen_label, asp = T,
+      pch = 16, xlab = paste0(colnames(gen_dat)[index1], ", (", index1, ")"),
+      ylab = paste0(colnames(gen_dat)[index2], ", (", index2, ")"), 
+      main = paste(paste0("Kendall of ", round(cor_kendall_mat[index1, index2], 3)),
+                   "\n",
+                   paste0("Dist.Cor of ", round(cor_dist_mat[index1, index2], 3))))
+}
+```
+
+## 3-7-1. Low distance Correlation and high XI
+
+```{r}
+cor_contrast7 <- (abs(cor_dist_mat) < 0.4) & (abs(cor_XI_mat) > 0.5)
+cor_contrast_ind7 <- which(cor_contrast7, arr.ind = T)
+nrow(cor_contrast_ind7)
+```
+
+## 3-7-2. Visualization of Low distance Correlation and high XI
+
+```{r}
+par(mfrow = c(2, 2))
+
+for (i in 1:nrow(cor_contrast_ind7)){
+   index1 <- cor_contrast_ind7[i, 1]; index2 <- cor_contrast_ind7[i, 2]
+   plot(gen_dat[,index1], gen_dat[,index2], col = gen_label, asp = T,
+      pch = 16, xlab = paste0(colnames(gen_dat)[index1], ", (", index1, ")"),
+      ylab = paste0(colnames(gen_dat)[index2], ", (", index2, ")"), 
+      main = paste(paste0("Dist.Cor of ", round(cor_dist_mat[index1, index2], 3)),
+                   "\n",
+                   paste0("XI of ", round(cor_XI_mat[index1, index2], 3))))
+}
+```
+
+## 3-8-1. High Blomqvist's Beta (> 0.65) and low XI (< 0.45)
+
+```{r}
+cor_contrast8 <- (abs(cor_blomqvist_mat) > 0.65) & (abs(cor_XI_mat) < 0.4)
+cor_contrast_ind8 <- which(cor_contrast8, arr.ind = T)
+nrow(cor_contrast_ind8)
+```
+
+## 3-8.2. Visualization of High Blomqvist's Beta (> 0.65) and low XI (< 0.45)
+
+```{r}
+par(mfrow = c(2, 2))
+
+for (i in 1:nrow(cor_contrast_ind8)){
+   index1 <- cor_contrast_ind8[i, 1]; index2 <- cor_contrast_ind8[i, 2]
+   plot(gen_dat[,index1], gen_dat[,index2], col = gen_label, asp = T,
+      pch = 16, xlab = paste0(colnames(gen_dat)[index1], ", (", index1, ")"),
+      ylab = paste0(colnames(gen_dat)[index2], ", (", index2, ")"), 
+      main = paste(paste0("Beta of ", round(cor_blomqvist_mat[index1, index2], 3)),
+                   "\n",
+                   paste0("XI of ", round(cor_XI_mat[index1, index2], 3))))
 }
 ```
