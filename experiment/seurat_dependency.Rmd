@@ -1,0 +1,589 @@
+---
+title: "seurat_dependency"
+author: "Taewan Kim"
+date: "9/2/2021"
+output:
+    html_document:
+    toc:  true
+    toc_float:  true
+    code_folding: hide
+---
+
+
+# 1. Import Data and Library
+
+```{r}
+knitr::opts_chunk$set(message = FALSE, warning = FALSE)
+
+library(Seurat)
+library(SeuratData)
+library(cowplot)
+library(dplyr)
+```
+
+```{r}
+load("seurat_data.RData")
+
+# Import and Read Data
+RNA_dat <- bm@assays$RNA
+# RNA_mat <- t(as.matrix(RNA_dat@counts))
+
+# Extract labels
+cell_type <- bm$celltype.l2
+cell_labels <- unique(cell_type)
+```
+
+```{r}
+# rand_ind <- c()
+# 
+# for (cell in cell_labels){
+#   set.seed(10)
+#   
+#   subcell_ind <- which(cell_type == cell)
+#   subcell_len <- length(subcell_ind)
+#   subcell_mat <- RNA_mat[subcell_ind, ]
+#   
+#   row_ind <- apply(subcell_mat, 1, function(x){length(which(x != 0))}) 
+#   idx <- order(row_ind, decreasing = T)
+#   
+#   rand_ind <- c(rand_ind, idx[1:(subcell_len/30)])
+# }
+# 
+# sub_dat <- RNA_mat[rand_ind, ]
+# 
+# col_ind <- apply(sub_dat, 2, function(x){length(which(x != 0))})
+# idx <- order(col_ind, decreasing = T)[1:500]
+# 
+# sub_dat <- sub_dat[, idx]
+# 
+# dat_hclust <- hclust(dist(t(sub_dat)))
+# dat_index <- dat_hclust$order
+
+# sub_dat <- sub_dat[, dat_index]
+# sub_celltype <- cell_type[rand_ind]
+sub_cluster_labels <- as.numeric(as.factor(sub_celltype))
+```
+
+# 2-1. Dependency Measures
+
+```{r}
+library(reshape2) # melt function
+library(ggplot2) # ggplot function
+library(pcaPP) # Fast Kendall function
+library(energy) # Distance Correlation
+library(Hmisc) # Hoeffding's D measure
+library(zebu) # Normalized Mutual Information
+# library(minerva) # Maximum Information Coefficient
+library(XICOR) # Chatterjee's Coefficient
+# library(dHSIC) # Hilbert Schmidt Independence Criterion
+library(VineCopula) # Blomqvist's Beta
+
+make_cormat <- function(dat_mat){
+matrix_dat <- matrix(nrow = ncol(dat_mat), ncol = ncol(dat_mat))
+  cor_mat_list <- list()
+  
+  basic_cor <- c("pearson", "spearman")
+  # find each of the correlation matrices with Pearson, Spearman, Kendall Correlation Coefficients
+  for (i in 1:2){
+    print(i)
+    cor_mat <- stats::cor(dat_mat, method = basic_cor[i])
+    cor_mat[upper.tri(cor_mat, diag = T)] <- NA
+    cor_mat_list[[i]] <- cor_mat
+  }
+  
+  # functions that take matrix or data.frame as input
+  no_loop_function <- c(pcaPP::cor.fk, Hmisc::hoeffd, 
+                        VineCopula::BetaMatrix)
+  for (i in 3:5){
+    print(i)
+    fun <- no_loop_function[[i-2]]
+    cor_mat <- fun(dat_mat)
+    if (i == 4){ # Hoeffding's D
+      cor_mat <- cor_mat$D
+    }
+    cor_mat[upper.tri(cor_mat, diag = T)] <- NA
+    cor_mat_list[[i]] <- cor_mat
+  }
+  
+  # functions that take two variables as input to calculate correlations.
+  need_loop <- c(zebu::lassie, energy::dcor2d, XICOR::calculateXI)
+
+  for (i in 6:8){
+    print(i)
+    fun <- need_loop[[i-5]]
+    
+    cor_mat <- matrix(nrow = ncol(dat_mat),
+                      ncol = ncol(dat_mat))
+    
+    for (j in 2:ncol(dat_mat)){
+      for (k in 1:(j-1)){
+        if (i == 6){
+          cor_mat[j, k] <- fun(cbind(dat_mat[, j], dat_mat[, k]), continuous=c(1,2), breaks = 6, measure = "npmi")$global
+
+        } else {
+          cor_mat[j, k] <- fun(as.numeric(dat_mat[, j]),
+                               as.numeric(dat_mat[, k]))
+        }
+      }
+    }
+    
+    cor_mat[upper.tri(cor_mat, diag = T)] <- NA
+    cor_mat_list[[i]] <- cor_mat
+  }
+  return(cor_mat_list)
+}
+
+draw_heatmap <- function(cor_mat){
+    len <- 8
+    melted_cormat <- melt(cor_mat)
+    melted_cormat <- melted_cormat[!is.na(melted_cormat$value),]
+    break_vec <- round(as.numeric(quantile(melted_cormat$value,
+                                           probs = seq(0, 1, length.out = len),
+                                           na.rm = T)),
+                       4)
+    break_vec[1] <- break_vec[1]-1
+    break_vec[len] <- break_vec[len]+1
+    melted_cormat$value <- cut(melted_cormat$value, breaks = break_vec)
+    heatmap_color <- unique(melted_cormat$value)
+  
+    heatmap <- ggplot(data = melted_cormat, aes(x = Var2, y = Var1, fill = value))+
+      geom_tile(colour = "Black") +
+      ggplot2::scale_fill_manual(breaks = sort(heatmap_color), 
+                                 values = rev(scales::viridis_pal(begin = 0, end = 1)
+                                              (length(heatmap_color)))) +
+      theme_bw() + # make the background white
+      theme(panel.border = element_blank(), panel.grid.major = element_blank(),
+            panel.grid.minor = element_blank(), axis.ticks = element_blank(),
+            # erase tick marks and labels
+            axis.text.x = element_blank(), axis.text.y = element_blank())
+    
+    return (heatmap)
+}
+
+make_cor_heatmap <- function(dat_mat, cor_mat_list){
+  fun_lable <- c("Pearson's Correlation", "Spearman's Correlation", "Kendall's Correlation",
+                 "Hoeffding's D", "Blomqvist's Beta", "NMI", 
+                 "Distance Correlation", "XI Correlation")
+  
+  cor_heatmap_list <- list()
+  cor_abs_heatmap_list <- list()
+  
+  # make correlation matrices
+  #cor_mat_list <- make_cormat(dat_mat)
+  
+  for (i in 1:8){
+    cor_mat <- cor_mat_list[[i]]
+    
+    # get heatmaps
+    cor_heatmap <- draw_heatmap(cor_mat)
+    
+    # ggplot labels
+    ggplot_labs <- labs(title = paste("Heatmap of", fun_lable[i]),
+                      x = "",
+                      y = "",
+                      fill = "Coefficient") # change the title and legend label
+      
+    cor_heatmap_list[[i]] <- cor_heatmap + ggplot_labs
+    
+    if (i %in% c(1,2,3,4,6)){
+      cor_abs_mat <- abs(cor_mat_list[[i]])
+      cor_abs_heatmap <- draw_heatmap(cor_abs_mat)
+      ggplot_abs_labs <- labs(title = paste("Abs Heatmap of", fun_lable[i]),
+                              x = "", # change the title and legend label
+                              y = "", 
+                              fill = "Coefficient") 
+      cor_abs_heatmap_list[[i]] <- cor_abs_heatmap + ggplot_abs_labs
+    } else {
+      ggplot_abs_labs <- labs(title = paste("Abs Heatmap of", fun_lable[i]),
+                              subtitle = "Equivalent to Non-Abs Heatmap",
+                              x = "", # change the title and legend label
+                              y = "", 
+                              fill = "Coefficient") 
+      cor_abs_heatmap_list[[i]] <- cor_heatmap + ggplot_abs_labs
+    }
+  }
+  
+  ans <- list(cor_heatmap_list, cor_abs_heatmap_list)
+  
+  return (ans)
+}
+```
+
+```{r}
+# cormat_list <- make_cormat(sub_dat)
+# lst <- make_cor_heatmap(sub_dat, cormat_list)
+load("seurat_corr.RData")
+
+cor_pearson_mat <- cormat_list[[1]]; cor_spearman_mat <- cormat_list[[2]];
+cor_kendall_mat <- cormat_list[[3]]; cor_hoeffd_mat <- cormat_list[[4]];
+cor_blomqvist_mat <- cormat_list[[5]]; cor_dist_mat <- cormat_list[[6]];
+cor_MI_mat <- cormat_list[[7]]; cor_XI_mat <- cormat_list[[8]];
+```
+
+## 1.	Pearson’s correlation coefficient
+
+```{r}
+cor_pearson_mat[1:5,1:5]
+```
+
+```{r}
+# plot the smallest correlations
+cor_pearson_vec <- sort(abs(cor_pearson_mat), decreasing = T)
+plot(cor_pearson_vec)
+```
+
+```{r}
+#plot the high correlations
+par(mfrow = c(2,2))
+for(i in 1:4){
+ idx <- which(abs(cor_pearson_mat) == cor_pearson_vec[i], arr.ind = T)
+ idx1 <- idx[1]; idx2 <- idx[2]
+ 
+ plot(sub_dat[,idx1], sub_dat[,idx2], col = sub_cluster_labels, asp = T,
+      pch = 16, xlab = paste0(colnames(sub_dat)[idx1], ", (", idx1, ")"),
+      ylab = paste0(colnames(sub_dat)[idx2], ", (", idx2, ")"), 
+      main = paste0("Correlation of ", round(cor_pearson_mat[idx1, idx2], 3)))
+}
+```
+
+```{r}
+#plot the lowest correlations
+par(mfrow = c(2,2))
+for(i in 1:4){
+ idx <- which(abs(cor_pearson_mat) == rev(cor_pearson_vec)[i], arr.ind = T)
+ idx1 <- idx[1]; idx2 <- idx[2]
+ 
+ plot(sub_dat[,idx1], sub_dat[,idx2], col = sub_cluster_labels, asp = T,
+      pch = 16, xlab = paste0(colnames(sub_dat)[idx1], ", (", idx1, ")"),
+      ylab = paste0(colnames(sub_dat)[idx2], ", (", idx2, ")"), 
+      main = paste0("Correlation of ", round(cor_pearson_mat[idx1, idx2], 3)))
+}
+```
+
+### Heatmap
+
+```{r}
+heatmap_list[[1]][[1]]
+```
+
+## 2.	Spearman’s correlation coefficient
+
+```{r}
+cor_spearman_mat[1:5,1:5]
+```
+
+```{r}
+# plot the smallest correlations
+cor_spearman_vec <- sort(abs(cor_spearman_mat), decreasing = T)
+plot(cor_spearman_vec)
+```
+
+```{r}
+#plot the high correlations
+par(mfrow = c(2,2))
+for(i in 1:4){
+ idx <- which(abs(cor_spearman_mat) == cor_spearman_vec[i], arr.ind = T)
+ idx1 <- idx[1]; idx2 <- idx[2]
+ 
+ plot(sub_dat[,idx1], sub_dat[,idx2], col = sub_cluster_labels, asp = T,
+      pch = 16, xlab = paste0(colnames(sub_dat)[idx1], ", (", idx1, ")"),
+      ylab = paste0(colnames(sub_dat)[idx2], ", (", idx2, ")"), 
+      main = paste0("Correlation of ", round(cor_spearman_mat[idx1, idx2], 3)))
+}
+```
+
+```{r}
+#plot the lowest correlations
+par(mfrow = c(2,2))
+for(i in 1:4){
+ idx <- which(abs(cor_spearman_mat) == rev(cor_spearman_vec)[i], arr.ind = T)
+ idx1 <- idx[1]; idx2 <- idx[2]
+ 
+ plot(sub_dat[,idx1], sub_dat[,idx2], col = sub_cluster_labels, asp = T,
+      pch = 16, xlab = paste0(colnames(sub_dat)[idx1], ", (", idx1, ")"),
+      ylab = paste0(colnames(sub_dat)[idx2], ", (", idx2, ")"), 
+      main = paste0("Correlation of ", round(cor_spearman_mat[idx1, idx2], 3)))
+}
+```
+
+### Heatmap
+
+```{r}
+heatmap_list[[1]][[2]]
+```
+
+## 3. Kendall's Tau
+
+```{r}
+cor_kendall_mat[1:5,1:5]
+```
+
+```{r}
+# plot the smallest correlations
+cor_kendall_vec <- sort(abs(cor_kendall_mat), decreasing = T)
+plot(cor_kendall_vec)
+```
+
+```{r}
+#plot the high correlations
+par(mfrow = c(2,2))
+for(i in 1:4){
+ idx <- which(abs(cor_kendall_mat) == cor_kendall_vec[i], arr.ind = T)
+ idx1 <- idx[1]; idx2 <- idx[2]
+ 
+ plot(sub_dat[,idx1], sub_dat[,idx2], col = sub_cluster_labels, asp = T,
+      pch = 16, xlab = paste0(colnames(sub_dat)[idx1], ", (", idx1, ")"),
+      ylab = paste0(colnames(sub_dat)[idx2], ", (", idx2, ")"), 
+      main = paste0("Correlation of ", round(cor_kendall_mat[idx1, idx2], 3)))
+}
+```
+
+```{r}
+#plot the lowest correlations
+par(mfrow = c(2,2))
+for(i in 1:4){
+ idx <- which(abs(cor_kendall_mat) == rev(cor_kendall_vec)[i], arr.ind = T)
+ idx1 <- idx[1]; idx2 <- idx[2]
+ 
+ plot(sub_dat[,idx1], sub_dat[,idx2], col = sub_cluster_labels, asp = T,
+      pch = 16, xlab = paste0(colnames(sub_dat)[idx1], ", (", idx1, ")"),
+      ylab = paste0(colnames(sub_dat)[idx2], ", (", idx2, ")"), 
+      main = paste0("Correlation of ", round(cor_kendall_mat[idx1, idx2], 3)))
+}
+```
+
+### Heatmap
+
+```{r}
+heatmap_list[[1]][[3]]
+```
+
+## 4. Hoeffding's D
+
+```{r}
+cor_hoeffd_mat[1:5,1:5]
+```
+
+```{r}
+# plot the smallest correlations
+cor_hoeffd_vec <- sort(abs(cor_hoeffd_mat), decreasing = T)
+plot(cor_hoeffd_vec)
+```
+
+```{r}
+#plot the high correlations
+par(mfrow = c(2,2))
+for(i in 1:4){
+ idx <- which(abs(cor_hoeffd_mat) == cor_hoeffd_vec[i], arr.ind = T)
+ idx1 <- idx[1]; idx2 <- idx[2]
+ 
+ plot(sub_dat[,idx1], sub_dat[,idx2], col = sub_cluster_labels, asp = T,
+      pch = 16, xlab = paste0(colnames(sub_dat)[idx1], ", (", idx1, ")"),
+      ylab = paste0(colnames(sub_dat)[idx2], ", (", idx2, ")"), 
+      main = paste0("Correlation of ", round(cor_hoeffd_mat[idx1, idx2], 3)))
+}
+```
+
+```{r}
+#plot the lowest correlations
+par(mfrow = c(2,2))
+for(i in 1:4){
+ idx <- which(abs(cor_hoeffd_mat) == rev(cor_hoeffd_vec)[i], arr.ind = T)
+ idx1 <- idx[1]; idx2 <- idx[2]
+ 
+ plot(sub_dat[,idx1], sub_dat[,idx2], col = sub_cluster_labels, asp = T,
+      pch = 16, xlab = paste0(colnames(sub_dat)[idx1], ", (", idx1, ")"),
+      ylab = paste0(colnames(sub_dat)[idx2], ", (", idx2, ")"), 
+      main = paste0("Correlation of ", round(cor_hoeffd_mat[idx1, idx2], 3)))
+}
+```
+
+### Heatmap
+
+```{r}
+heatmap_list[[1]][[4]]
+```
+
+## 5. Blomqvist's Beta
+
+```{r}
+cor_blomqvist_mat[1:5,1:5]
+```
+
+```{r}
+# plot the smallest correlations
+cor_blomqvist_vec <- sort(abs(cor_blomqvist_mat), decreasing = T)
+plot(cor_blomqvist_vec)
+```
+
+```{r}
+#plot the high correlations
+par(mfrow = c(2,2))
+for(i in 1:4){
+ idx <- which(abs(cor_blomqvist_mat) == cor_blomqvist_vec[i], arr.ind = T)
+ idx1 <- idx[i,1]; idx2 <- idx[i,2]
+ 
+ plot(sub_dat[,idx1], sub_dat[,idx2], col = sub_cluster_labels, asp = T,
+      pch = 16, xlab = paste0(colnames(sub_dat)[idx1], ", (", idx1, ")"),
+      ylab = paste0(colnames(sub_dat)[idx2], ", (", idx2, ")"), 
+      main = paste0("Correlation of ", round(cor_blomqvist_mat[idx1, idx2], 3)))
+}
+```
+
+```{r}
+#plot the lowest correlations
+par(mfrow = c(2,2))
+for(i in 1:4){
+ idx <- which(abs(cor_blomqvist_mat) == rev(cor_blomqvist_vec)[i], arr.ind = T)
+ idx1 <- idx[i,1]; idx2 <- idx[i,2]
+ 
+ plot(sub_dat[,idx1], sub_dat[,idx2], col = sub_cluster_labels, asp = T,
+      pch = 16, xlab = paste0(colnames(sub_dat)[idx1], ", (", idx1, ")"),
+      ylab = paste0(colnames(sub_dat)[idx2], ", (", idx2, ")"), 
+      main = paste0("Correlation of ", round(cor_blomqvist_mat[idx1, idx2], 3)))
+}
+```
+
+### Heatmap
+
+```{r}
+heatmap_list[[1]][[5]]
+```
+
+## 6. Distance Correlation
+
+```{r}
+cor_dist_mat[1:5,1:5]
+```
+
+```{r}
+# plot the smallest correlations
+cor_dist_vec <- sort(abs(cor_dist_mat), decreasing = T)
+plot(cor_dist_vec)
+```
+
+```{r}
+#plot the high correlations
+par(mfrow = c(2,2))
+for(i in 1:4){
+ idx <- which(abs(cor_dist_mat) == cor_dist_vec[i], arr.ind = T)
+ idx1 <- idx[1]; idx2 <- idx[2]
+ 
+ plot(sub_dat[,idx1], sub_dat[,idx2], col = sub_cluster_labels, asp = T,
+      pch = 16, xlab = paste0(colnames(sub_dat)[idx1], ", (", idx1, ")"),
+      ylab = paste0(colnames(sub_dat)[idx2], ", (", idx2, ")"), 
+      main = paste0("Correlation of ", round(cor_dist_mat[idx1, idx2], 3)))
+}
+```
+
+```{r}
+#plot the lowest correlations
+par(mfrow = c(2,2))
+for(i in 1:4){
+ idx <- which(abs(cor_dist_mat) == rev(cor_dist_vec)[i], arr.ind = T)
+ idx1 <- idx[1]; idx2 <- idx[2]
+ 
+ plot(sub_dat[,idx1], sub_dat[,idx2], col = sub_cluster_labels, asp = T,
+      pch = 16, xlab = paste0(colnames(sub_dat)[idx1], ", (", idx1, ")"),
+      ylab = paste0(colnames(sub_dat)[idx2], ", (", idx2, ")"), 
+      main = paste0("Correlation of ", round(cor_dist_mat[idx1, idx2], 3)))
+}
+```
+
+### Heatmap
+
+```{r}
+heatmap_list[[1]][[6]]
+```
+
+## 7. Normalized Mutual Information
+
+```{r}
+cor_MI_mat[1:5,1:5]
+```
+
+```{r}
+# plot the smallest correlations
+cor_MI_vec <- sort(abs(cor_MI_mat), decreasing = T)
+plot(cor_MI_vec)
+```
+
+```{r}
+#plot the high correlations
+par(mfrow = c(2,2))
+for(i in 1:4){
+ idx <- which(abs(cor_MI_mat) == cor_MI_vec[i], arr.ind = T)
+ idx1 <- idx[1]; idx2 <- idx[2]
+ 
+ plot(sub_dat[,idx1], sub_dat[,idx2], col = sub_cluster_labels, asp = T,
+      pch = 16, xlab = paste0(colnames(sub_dat)[idx1], ", (", idx1, ")"),
+      ylab = paste0(colnames(sub_dat)[idx2], ", (", idx2, ")"), 
+      main = paste0("Correlation of ", round(cor_MI_mat[idx1, idx2], 3)))
+}
+```
+
+```{r}
+#plot the lowest correlations
+par(mfrow = c(2,2))
+for(i in 1:4){
+ idx <- which(abs(cor_MI_mat) == rev(cor_MI_vec)[i], arr.ind = T)
+ idx1 <- idx[1]; idx2 <- idx[2]
+ 
+ plot(sub_dat[,idx1], sub_dat[,idx2], col = sub_cluster_labels, asp = T,
+      pch = 16, xlab = paste0(colnames(sub_dat)[idx1], ", (", idx1, ")"),
+      ylab = paste0(colnames(sub_dat)[idx2], ", (", idx2, ")"), 
+      main = paste0("Correlation of ", round(cor_MI_mat[idx1, idx2], 3)))
+}
+```
+
+### Heatmap
+
+```{r}
+heatmap_list[[1]][[7]]
+```
+
+## 8. Chatterjee's XI Correlation
+
+```{r}
+cor_XI_mat[1:5,1:5]
+```
+
+```{r}
+# plot the smallest correlations
+cor_XI_vec <- sort(abs(cor_XI_mat), decreasing = T)
+plot(cor_XI_vec)
+```
+
+```{r}
+#plot the high correlations
+par(mfrow = c(2,2))
+for(i in 1:4){
+ idx <- which(abs(cor_XI_mat) == cor_XI_vec[i], arr.ind = T)
+ idx1 <- idx[1]; idx2 <- idx[2]
+ 
+ plot(sub_dat[,idx1], sub_dat[,idx2], col = sub_cluster_labels, asp = T,
+      pch = 16, xlab = paste0(colnames(sub_dat)[idx1], ", (", idx1, ")"),
+      ylab = paste0(colnames(sub_dat)[idx2], ", (", idx2, ")"), 
+      main = paste0("Correlation of ", round(cor_XI_mat[idx1, idx2], 3)))
+}
+```
+
+```{r}
+#plot the lowest correlations
+par(mfrow = c(2,2))
+for(i in 1:4){
+ idx <- which(abs(cor_XI_mat) == rev(cor_XI_vec)[i], arr.ind = T)
+ idx1 <- idx[1]; idx2 <- idx[2]
+ 
+ plot(sub_dat[,idx1], sub_dat[,idx2], col = sub_cluster_labels, asp = T,
+      pch = 16, xlab = paste0(colnames(sub_dat)[idx1], ", (", idx1, ")"),
+      ylab = paste0(colnames(sub_dat)[idx2], ", (", idx2, ")"), 
+      main = paste0("Correlation of ", round(cor_XI_mat[idx1, idx2], 3)))
+}
+```
+
+### Heatmap
+
+```{r}
+heatmap_list[[1]][[8]]
+```
