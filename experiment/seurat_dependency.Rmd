@@ -10,6 +10,11 @@ output:
 ---
 
 
+2. When comparing the dependency measures, find the 20% and 80% percentile of each measure to set threshold (it can change)
+3. Comment on each dependency measure, I will include math formula. Also, in pattern give a comment why they have contrast coefficients.
+
+For next, there is another dataset to explore. Then, going back to the simulation.
+
 # 1. Import Data and Library
 
 ```{r}
@@ -22,31 +27,43 @@ library(dplyr)
 ```
 
 ```{r}
-load("seurat_data.RData")
+load("s_seurat_data.RData")
 
 # Import and Read Data
 RNA_dat <- bm@assays$RNA
+
 # RNA_mat <- t(as.matrix(RNA_dat@counts))
+# RNA_mat <- t(as.matrix(RNA_dat@scale.data))
 
 # Extract labels
 cell_type <- bm$celltype.l2
 cell_labels <- unique(cell_type)
 ```
 
+
 ```{r}
+# rand_ind <- c()
+# for (cell in cell_labels){
+#   set.seed(10)
+# 
+#   subcell_ind <- which(cell_type == cell)
+#   subcell_len <- length(subcell_ind)
+#   subcell_mat <- RNA_mat[subcell_ind, ]
+# 
+#   row_ind <- apply(subcell_mat, 1, function(x){length(which(x != 0))})
+#   idx <- order(row_ind, decreasing = T)
+# 
+#   rand_ind <- c(rand_ind, idx[1:(subcell_len/30)])
+# }
+# 
 # rand_ind <- c()
 # 
 # for (cell in cell_labels){
 #   set.seed(10)
-#   
 #   subcell_ind <- which(cell_type == cell)
-#   subcell_len <- length(subcell_ind)
-#   subcell_mat <- RNA_mat[subcell_ind, ]
-#   
-#   row_ind <- apply(subcell_mat, 1, function(x){length(which(x != 0))}) 
-#   idx <- order(row_ind, decreasing = T)
-#   
-#   rand_ind <- c(rand_ind, idx[1:(subcell_len/30)])
+#   sub_rand <- sample(length(subcell_ind),
+#                      length(subcell_ind)/20)
+#   rand_ind <- c(rand_ind, subcell_ind[sub_rand])
 # }
 # 
 # sub_dat <- RNA_mat[rand_ind, ]
@@ -58,10 +75,11 @@ cell_labels <- unique(cell_type)
 # 
 # dat_hclust <- hclust(dist(t(sub_dat)))
 # dat_index <- dat_hclust$order
-
+# 
 # sub_dat <- sub_dat[, dat_index]
 # sub_celltype <- cell_type[rand_ind]
 sub_cluster_labels <- as.numeric(as.factor(sub_celltype))
+
 ```
 
 # 2-1. Dependency Measures
@@ -134,7 +152,7 @@ matrix_dat <- matrix(nrow = ncol(dat_mat), ncol = ncol(dat_mat))
 }
 
 draw_heatmap <- function(cor_mat){
-    len <- 8
+    len <- 5
     melted_cormat <- melt(cor_mat)
     melted_cormat <- melted_cormat[!is.na(melted_cormat$value),]
     break_vec <- round(as.numeric(quantile(melted_cormat$value,
@@ -162,8 +180,8 @@ draw_heatmap <- function(cor_mat){
 
 make_cor_heatmap <- function(dat_mat, cor_mat_list){
   fun_lable <- c("Pearson's Correlation", "Spearman's Correlation", "Kendall's Correlation",
-                 "Hoeffding's D", "Blomqvist's Beta", "NMI", 
-                 "Distance Correlation", "XI Correlation")
+                 "Hoeffding's D", "Blomqvist's Beta","Distance Correlation", 
+                 "NMI", "XI Correlation")
   
   cor_heatmap_list <- list()
   cor_abs_heatmap_list <- list()
@@ -172,7 +190,8 @@ make_cor_heatmap <- function(dat_mat, cor_mat_list){
   #cor_mat_list <- make_cormat(dat_mat)
   
   for (i in 1:8){
-    cor_mat <- cor_mat_list[[i]]
+    print(i)
+    cor_mat <- abs(cor_mat_list[[i]])
     
     # get heatmaps
     cor_heatmap <- draw_heatmap(cor_mat)
@@ -210,9 +229,10 @@ make_cor_heatmap <- function(dat_mat, cor_mat_list){
 ```
 
 ```{r}
-# cormat_list <- make_cormat(sub_dat)
-# lst <- make_cor_heatmap(sub_dat, cormat_list)
 load("seurat_corr.RData")
+# cormat_list <- make_cormat(sub_dat)
+heatmap_list <- make_cor_heatmap(sub_dat, cormat_list)
+
 
 cor_pearson_mat <- cormat_list[[1]]; cor_spearman_mat <- cormat_list[[2]];
 cor_kendall_mat <- cormat_list[[3]]; cor_hoeffd_mat <- cormat_list[[4]];
@@ -224,6 +244,10 @@ cor_MI_mat <- cormat_list[[7]]; cor_XI_mat <- cormat_list[[8]];
 
 ```{r}
 cor_pearson_mat[1:5,1:5]
+
+quantile(cor_pearson_mat, na.rm = T)
+
+quantile(abs(cor_pearson_mat), na.rm = T)
 ```
 
 ```{r}
@@ -270,6 +294,10 @@ heatmap_list[[1]][[1]]
 
 ```{r}
 cor_spearman_mat[1:5,1:5]
+
+quantile(cor_spearman_mat, na.rm = T)
+
+quantile(abs(cor_spearman_mat), na.rm = T)
 ```
 
 ```{r}
@@ -316,6 +344,10 @@ heatmap_list[[1]][[2]]
 
 ```{r}
 cor_kendall_mat[1:5,1:5]
+
+quantile(cor_kendall_mat, na.rm = T)
+
+quantile(abs(cor_kendall_mat), na.rm = T)
 ```
 
 ```{r}
@@ -362,6 +394,8 @@ heatmap_list[[1]][[3]]
 
 ```{r}
 cor_hoeffd_mat[1:5,1:5]
+
+quantile(cor_hoeffd_mat, na.rm = T)
 ```
 
 ```{r}
@@ -408,6 +442,10 @@ heatmap_list[[1]][[4]]
 
 ```{r}
 cor_blomqvist_mat[1:5,1:5]
+
+quantile(cor_blomqvist_mat, na.rm = T)
+
+quantile(abs(cor_blomqvist_mat), na.rm = T)
 ```
 
 ```{r}
@@ -432,8 +470,8 @@ for(i in 1:4){
 
 ```{r}
 #plot the lowest correlations
-par(mfrow = c(2,2))
-for(i in 1:4){
+par(mfrow = c(1,1))
+for(i in 1:1){
  idx <- which(abs(cor_blomqvist_mat) == rev(cor_blomqvist_vec)[i], arr.ind = T)
  idx1 <- idx[i,1]; idx2 <- idx[i,2]
  
@@ -454,6 +492,8 @@ heatmap_list[[1]][[5]]
 
 ```{r}
 cor_dist_mat[1:5,1:5]
+
+quantile(cor_dist_mat, na.rm = T)
 ```
 
 ```{r}
@@ -500,6 +540,8 @@ heatmap_list[[1]][[6]]
 
 ```{r}
 cor_MI_mat[1:5,1:5]
+
+quantile(cor_MI_mat, na.rm = T)
 ```
 
 ```{r}
@@ -546,6 +588,8 @@ heatmap_list[[1]][[7]]
 
 ```{r}
 cor_XI_mat[1:5,1:5]
+
+quantile(cor_XI_mat, na.rm = T)
 ```
 
 ```{r}
