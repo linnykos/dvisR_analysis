@@ -1,19 +1,13 @@
 ---
 title: "seurat_dependency"
 author: "Taewan Kim"
-date: "9/2/2021"
+date: "9/16/2021"
 output:
     html_document:
     toc:  true
     toc_float:  true
     code_folding: hide
 ---
-
-
-2. When comparing the dependency measures, find the 20% and 80% percentile of each measure to set threshold (it can change)
-3. Comment on each dependency measure, I will include math formula. Also, in pattern give a comment why they have contrast coefficients.
-
-For next, there is another dataset to explore. Then, going back to the simulation.
 
 # 1. Import Data and Library
 
@@ -242,6 +236,11 @@ cor_MI_mat <- cormat_list[[7]]; cor_XI_mat <- cormat_list[[8]];
 
 ## 1.	Pearson’s correlation coefficient
 
+- Pearson's correlation is to measure linear dependency of data, X and Y
+- $-1 \leq \rho_{Pearson}(X, Y) \leq 1$
+- $\rho_{Pearson}(X, Y) = \frac{\sum(x_i-\bar{x})(y_i -\bar{y})}{\sum(x_i-\bar{x})^2(y_i -\bar{y})^2}$
+
+
 ```{r}
 cor_pearson_mat[1:5,1:5]
 
@@ -291,6 +290,10 @@ heatmap_list[[1]][[1]]
 ```
 
 ## 2.	Spearman’s correlation coefficient
+
+- It captures the monotonic relationship between data, X and Y
+- $-1 \leq \rho_{Spearman}(X,Y) \leq 1$
+- $\rho_{Spearman} = 1 - \frac{6\sum{d_i^2}}{n(n^2-1)}$ where $d_i$ is the difference between the ranks of $x_i$ and $y_i$
 
 ```{r}
 cor_spearman_mat[1:5,1:5]
@@ -342,6 +345,10 @@ heatmap_list[[1]][[2]]
 
 ## 3. Kendall's Tau
 
+- It is an alternative method to Spearman’s correlations, identifying monotonic relationships.
+- $-1 \leq \rho_{Kendall}(X,Y) \leq 1$
+- $\rho_{Kendall}(X,Y) = \frac{\#\;concordant\;pairs - \#\;discordant \;pairs}{0.5n(n-1)}$
+
 ```{r}
 cor_kendall_mat[1:5,1:5]
 
@@ -392,6 +399,13 @@ heatmap_list[[1]][[3]]
 
 ## 4. Hoeffding's D
 
+- It tests the independence of data by calculating the distance between the product of the marginal distributions under the null hypothesis and the empirical bi-variate distribution.
+- $-1 \leq D(X,Y) \leq 1$
+- $D(X,Y) = \frac{(n-2)(n-3)D_1+D_2-2(n-2)D_3}{n(n-1)(n-2)(n-3)(n-4)}$
+  -	$D_1 = \sum_{i=1}^{n} Q_i(Q_i-1)$
+  - $D_2 = \sum_{i=1}^{n} (R_i-1)(R_i-2)(S_j-1)(S_j-2)$
+  -	$D_3 = \sum_{i=1}^{n} (R_i-2)(S_i-2)Q_i$
+
 ```{r}
 cor_hoeffd_mat[1:5,1:5]
 
@@ -439,6 +453,11 @@ heatmap_list[[1]][[4]]
 ```
 
 ## 5. Blomqvist's Beta
+
+- It measures dependency between variables by constructing a two-way contingency table with the medians of each margin as cutting points.
+- $0 \leq \beta \leq 1$
+- $\beta_n = \frac{n_1-n_2}{n_1+n_2} = \frac{2n_1}{n_1+n_2} - 1$
+- $\beta = P\{(X-\tilde{x})(Y-\tilde{y})>0\} - P\{(X-\tilde{x})(Y-\tilde{y}) < 0\}$
 
 ```{r}
 cor_blomqvist_mat[1:5,1:5]
@@ -490,6 +509,13 @@ heatmap_list[[1]][[5]]
 
 ## 6. Distance Correlation
 
+- it is measure to identify non-linear relationships between two random variables with energy distances.
+- distance correlation is calculated by dividing the distance covariance between X and Y by the product of their distance standard deviations.
+- $0 \leq dCor \leq 1$
+- $dCor(X,Y) = \frac{dCov(Y,Y)}{\sqrt{dVar(X)dVar(Y)}}$
+  - $dCov(X, Y) = \sqrt{\frac{1}{n^2} \sum_{k=1, l=1}^{n} A_{k,l}B_{k,l}}$
+  - $dVar(X) = dCov(X,X) and dVar(Y) = dCov(Y, Y)$
+
 ```{r}
 cor_dist_mat[1:5,1:5]
 
@@ -537,6 +563,11 @@ heatmap_list[[1]][[6]]
 ```
 
 ## 7. Normalized Mutual Information
+
+- It measures how much one random variable gives information about the other. For example, High mutual information indicates a large reduction in uncertainty. 
+- $0 \leq MI(X,Y) \leq  1$, as it is normalized.
+- $MI(X,Y) = \int \int f_{X,Y} (x,y) log_2\frac{f_{X,Y} (x,y)}{f_X{x}f_Y{y}} \; dxdy $
+- $MI(X,Y) = \sum \sum p_{X,Y} (x,y) log \frac{p_{X,Y} (x,y)}{P_X(x)P_Y(y)}$
 
 ```{r}
 cor_MI_mat[1:5,1:5]
@@ -586,6 +617,12 @@ heatmap_list[[1]][[7]]
 
 ## 8. Chatterjee's XI Correlation
 
+- It measures the degree of dependence between the variables with concept of rank.
+- $0 \leq \xi_n \leq 1$
+-	$\xi_n(X,Y) = 1 - \frac{3\sum_{i=1}^{n-1} |r_{i+1} -r_i|}{n^2-1}$
+- $\xi_n(X,Y) = 1 - \frac{n\sum_{i=1}^{n-1}|r_{i+1}-r_i}{2\sum_{i=1}^{n}l_i(n-l_i)}$
+
+
 ```{r}
 cor_XI_mat[1:5,1:5]
 
@@ -630,4 +667,18 @@ for(i in 1:4){
 
 ```{r}
 heatmap_list[[1]][[8]]
+```
+
+```{r}
+quantile_mat <- c()
+for (i in 1:length(cormat_list)){
+  quantile_mat <- rbind(quantile_mat,
+                        quantile(abs(cormat_list[[i]]), probs = c(0.20, 0.85), na.rm = T))
+}
+rownames(quantile_mat) <- c("Pearson", "Spearman", "Kendall", "Hoeffding's D",
+                            "Blomqvist's Beta","Dist. Corr", "NMI", "XI Corr")
+
+quantile_mat
+
+save(quantile_mat, file = "seurat_quantile.RData")
 ```
