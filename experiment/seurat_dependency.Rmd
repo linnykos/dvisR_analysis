@@ -223,7 +223,7 @@ make_cor_heatmap <- function(dat_mat, cor_mat_list){
 ```
 
 ```{r}
-load("seurat_corr.RData")
+load("s_seurat_corr.RData")
 # cormat_list <- make_cormat(sub_dat)
 heatmap_list <- make_cor_heatmap(sub_dat, cormat_list)
 
@@ -669,7 +669,12 @@ for(i in 1:4){
 heatmap_list[[1]][[8]]
 ```
 
+- Define a dynamic function that finds the highest 6, given 
+
 ```{r}
+head(bm[["pca"]]@cell.embeddings)
+
+
 quantile_mat <- c()
 for (i in 1:length(cormat_list)){
   quantile_mat <- rbind(quantile_mat,
@@ -682,3 +687,19 @@ quantile_mat
 
 save(quantile_mat, file = "seurat_quantile.RData")
 ```
+
+```{r}
+new_dat <- (bm[["pca"]]@cell.embeddings) %*% t((bm[["pca"]]@feature.loadings))
+
+index <- sample(1:prod(dim(new_dat)), 5000)
+
+full_dat <- t(bm@assays$RNA@scale.data)
+
+plot(x = new_dat[index], y = full_dat[index], asp = T)
+
+# dim(new_dat)
+# dim(full_dat)
+```
+
+
+
