@@ -20,6 +20,8 @@ plot(scale_mat[,idx1], scale_mat[,idx2], asp = T, col = celltype_factor,
 # It still looks like it's very aligned with the axes 
 
 pca_obj <- bm[["pca"]]
+dim(pca_obj@cell.embeddings)
+dim(pca_obj@feature.loadings)
 pca_mat <- pca_obj@cell.embeddings %*% t(pca_obj@feature.loadings)
 dim(pca_mat); round(pca_mat[1:5,1:5],2)
 idx1 <- which(colnames(pca_mat) == "IGHA1")
