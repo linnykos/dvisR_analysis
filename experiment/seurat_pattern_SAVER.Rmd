@@ -1,0 +1,1069 @@
+---
+title: "seurat_pattern (SAVER)"
+author: "Taewan Kim"
+date: "1/3/2022"
+output:
+    html_document:
+    toc:  true
+    toc_float:  true
+    code_folding: hide
+---
+
+# 1. Import Data and Library
+
+```{r}
+library(Seurat)
+library(SeuratData)
+library(cowplot)
+library(dplyr)
+```
+
+```{r}
+load("SAVER_seurat_corr.RData")
+
+sub_cluster_labels <- as.numeric(as.factor(sub_celltype))
+
+cor_pearson_mat <- cormat_list[[1]]; cor_spearman_mat <- cormat_list[[2]];
+cor_kendall_mat <- cormat_list[[3]]; cor_hoeffd_mat <- cormat_list[[4]];
+cor_blomqvist_mat <- cormat_list[[5]]; cor_MI_mat <- cormat_list[[6]];
+cor_dist_mat <- cormat_list[[7]]; cor_XI_mat <- cormat_list[[8]];
+```
+
+```{r}
+load("SAVER_seurat_quantile.RData")
+
+quantile_mat
+```
+
+# 2. Find contrast characteristics among the correlation coefficients above
+
+```{r}
+contrast_helper <- function(contrast_ind, threshold){
+  to_track <- data.frame()
+  
+  if (nrow(contrast_ind) == 0){
+    return (contrast_ind)
+  }
+  
+  for (i in 1:nrow(contrast_ind)){
+    ind1 <- contrast_ind[i, 1]; ind2 <- contrast_ind[i, 2];
+    
+    if (i == 1){ # first element
+      to_track <- data.frame(row.names = c(ind1, ind2), val = c(1, 1))
+      ans <- matrix(contrast_ind[i, ], nrow = 1)
+    } else { 
+      if (nrow(ans) == 10) { # want to extract 10 pairs
+        break
+      } else {
+        row_names <- row.names(to_track)
+        ind1_str <- toString(ind1); ind2_str <- toString(ind2); 
+        
+        if (ind1_str %in% row_names){
+          first_bool <- to_track[ind1_str, ] < threshold
+          to_track[ind1_str, ] <- to_track[ind1_str, ] + 1
+        } else {
+          to_track[ind1_str, ] <- 1
+          first_bool <- TRUE
+        }
+        
+        if (ind2_str %in% row_names){
+          second_bool <- to_track[ind2_str, ] < threshold
+          to_track[ind2_str, ] <- to_track[ind2_str, ] + 1
+        } else {
+          to_track[ind2_str, ] <- 1
+          second_bool <- TRUE
+        }
+        
+        if (first_bool & second_bool){
+          ans <- rbind(ans, contrast_ind[i,])
+        }
+      }
+    }
+  }
+  return (ans)
+}
+```
+
+## 2-1-1. Low Pearson (< 10%) and High Spearman (> 95%) (linearity vs monotone)
+
+```{r}
+cor_contrast1 <- ((abs(cor_pearson_mat) < quantile_mat["Pearson", 1]) &
+                  (abs(cor_spearman_mat) > quantile_mat["Spearman", 2]))
+cor_contrast_ind1 <- which(cor_contrast1, arr.ind = T)
+cor_contrast_ind1 <- contrast_helper(cor_contrast_ind1, 3)
+
+nrow(cor_contrast_ind1)
+```
+
+## 2-1-2. Visualization of Low Pearson (< 10%) and High Spearman (> 95%) (linearity vs monotone)
+
+```{r}
+par(mfrow = c(2, 2))
+for (i in 1:nrow(cor_contrast_ind1)){
+  index1 <- cor_contrast_ind1[i, 1]; index2 <- cor_contrast_ind1[i, 2]
+  plot(saver_mat[,index1], saver_mat[,index2], col = sub_cluster_labels, asp = T,
+       pch = 16, xlab = paste0(colnames(saver_mat)[index1], ", (", index1, ")"),
+       ylab = paste0(colnames(saver_mat)[index2], ", (", index2, ")"), 
+       main = paste(paste0("Pearson of ", round(cor_pearson_mat[index1, index2], 3)),
+                    "\n",
+                    paste0("Spearman of ", round(cor_spearman_mat[index1, index2], 3))))
+}
+```
+
+## 2-2-1. High Pearson (> 95%) and Low Spearman (< 10%) (linearity vs monotone)
+
+```{r}
+cor_contrast2 <- ((abs(cor_pearson_mat) > quantile_mat["Pearson", 2]) &
+                  (abs(cor_spearman_mat) < quantile_mat["Spearman", 1]))
+cor_contrast_ind2 <- which(cor_contrast2, arr.ind = T)
+cor_contrast_ind2 <- contrast_helper(cor_contrast_ind2, 3)
+
+nrow(cor_contrast_ind2)
+```
+
+## 2-2-2. Visualization of High Pearson (> 95%) and Low Spearman (< 10%) (linearity vs monotone)
+
+```{r}
+par(mfrow = c(2, 5))
+for (i in 1:nrow(cor_contrast_ind2)){
+  index1 <- cor_contrast_ind2[i, 1]; index2 <- cor_contrast_ind2[i, 2]
+  plot(saver_mat[,index1], saver_mat[,index2], col = sub_cluster_labels, asp = T,
+       pch = 16, xlab = paste0(colnames(saver_mat)[index1], ", (", index1, ")"),
+       ylab = paste0(colnames(saver_mat)[index2], ", (", index2, ")"), 
+       main = paste(paste0("Pearson of ", round(cor_pearson_mat[index1, index2], 3)),
+                    "\n",
+                    paste0("Spearman of ", round(cor_spearman_mat[index1, index2], 3))))
+}
+```
+
+## 2-3-1. Low Pearson (< 10%) and High Kendall (> 95%) (linearity vs monotone)
+
+```{r}
+cor_contrast3 <- ((abs(cor_pearson_mat) < quantile_mat["Pearson", 1]) &
+                  (abs(cor_kendall_mat) > quantile_mat["Kendall", 2]))
+cor_contrast_ind3 <- which(cor_contrast3, arr.ind = T)
+cor_contrast_ind3 <- contrast_helper(cor_contrast_ind3, 3)
+
+nrow(cor_contrast_ind3)
+```
+
+## 2-3-2. Visualization of Low Pearson (< 10%) and High Kendall (> 95%) (linearity vs monotone)
+
+```{r}
+par(mfrow = c(2, 3))
+for (i in 1:nrow(cor_contrast_ind3)){
+  index1 <- cor_contrast_ind3[i, 1]; index2 <- cor_contrast_ind3[i, 2]
+  plot(saver_mat[,index1], saver_mat[,index2], col = sub_cluster_labels, asp = T,
+       pch = 16, xlab = paste0(colnames(saver_mat)[index1], ", (", index1, ")"),
+       ylab = paste0(colnames(saver_mat)[index2], ", (", index2, ")"), 
+       main = paste(paste0("Pearson of ", round(cor_pearson_mat[index1, index2], 3)),
+                    "\n",
+                    paste0("Kendall of ", round(cor_kendall_mat[index1, index2], 3))))
+}
+```
+
+## 2-4-1. High Pearson (> 95%) and Low Kendall (< 10%) (linearity vs monotone)
+
+```{r}
+cor_contrast4 <- ((abs(cor_pearson_mat) > quantile_mat["Pearson", 2]) &
+                  (abs(cor_kendall_mat) < quantile_mat["Kendall", 1]))
+cor_contrast_ind4 <- which(cor_contrast4, arr.ind = T)
+cor_contrast_ind4 <- contrast_helper(cor_contrast_ind4, 3)
+
+nrow(cor_contrast_ind4)
+```
+
+## 2-4-2. Visualization of High Pearson (> 95%) and Low Kendall (< 10%) (linearity vs monotone)
+
+```{r}
+par(mfrow = c(2, 5))
+for (i in 1:nrow(cor_contrast_ind4)){
+  index1 <- cor_contrast_ind4[i, 1]; index2 <- cor_contrast_ind4[i, 2]
+  plot(saver_mat[,index1], saver_mat[,index2], col = sub_cluster_labels, asp = T,
+       pch = 16, xlab = paste0(colnames(saver_mat)[index1], ", (", index1, ")"),
+       ylab = paste0(colnames(saver_mat)[index2], ", (", index2, ")"), 
+       main = paste(paste0("Pearson of ", round(cor_pearson_mat[index1, index2], 3)),
+                    "\n",
+                    paste0("Kendall of ", round(cor_kendall_mat[index1, index2], 3))))
+}
+```
+
+## 2-5-1. Low Pearson (< 10%) and High Hoeffding's D (> 95%) (linearity vs monotone)
+
+```{r}
+cor_contrast5 <- ((abs(cor_pearson_mat) < quantile_mat["Pearson", 1]) &
+                  (abs(cor_hoeffd_mat) > quantile_mat["Hoeffding's D", 2]))
+cor_contrast_ind5 <- which(cor_contrast5, arr.ind = T)
+cor_contrast_ind5 <- contrast_helper(cor_contrast_ind5, 3)
+
+nrow(cor_contrast_ind5)
+```
+
+## 2-5-2. Visualization of Low Pearson (< 10%) and High Hoeffding's D (> 95%) (linearity vs monotone)
+
+```{r}
+par(mfrow = c(2, 4))
+for (i in 1:nrow(cor_contrast_ind5)){
+  index1 <- cor_contrast_ind5[i, 1]; index2 <- cor_contrast_ind5[i, 2]
+  plot(saver_mat[,index1], saver_mat[,index2], col = sub_cluster_labels, asp = T,
+       pch = 16, xlab = paste0(colnames(saver_mat)[index1], ", (", index1, ")"),
+       ylab = paste0(colnames(saver_mat)[index2], ", (", index2, ")"), 
+       main = paste(paste0("Pearson of ", round(cor_pearson_mat[index1, index2], 3)),
+                    "\n",
+                    paste0("Hoeff D of ", round(cor_hoeffd_mat[index1, index2], 3))))
+}
+```
+
+## 2-6-1. High Pearson (> 95%) and Low Hoeffding's D (< 10%) (linearity vs monotone)
+
+```{r}
+cor_contrast6 <- ((abs(cor_pearson_mat) > quantile_mat["Pearson", 2]) &
+                  (abs(cor_hoeffd_mat) < quantile_mat["Hoeffding's D", 1]))
+cor_contrast_ind6 <- which(cor_contrast6, arr.ind = T)
+cor_contrast_ind6 <- contrast_helper(cor_contrast_ind6, 3)
+
+nrow(cor_contrast_ind6)
+```
+
+## 2-6-2. Visualization of High Pearson (> 95%) and Low Hoeffding's D (< 10%) (linearity vs monotone)
+
+```{r}
+par(mfrow = c(2, 5))
+for (i in 1:nrow(cor_contrast_ind6)){
+  index1 <- cor_contrast_ind6[i, 1]; index2 <- cor_contrast_ind6[i, 2]
+  plot(saver_mat[,index1], saver_mat[,index2], col = sub_cluster_labels, asp = T,
+       pch = 16, xlab = paste0(colnames(saver_mat)[index1], ", (", index1, ")"),
+       ylab = paste0(colnames(saver_mat)[index2], ", (", index2, ")"), 
+       main = paste(paste0("Pearson of ", round(cor_pearson_mat[index1, index2], 3)),
+                    "\n",
+                    paste0("Hoeff D of ", round(cor_hoeffd_mat[index1, index2], 3))))
+}
+```
+
+## 2-7-1. Low Pearson (< 10%) and high Blomqvist's beta (> 95%) (linearity vs monotone)
+
+```{r}
+cor_contrast7 <- ((abs(cor_pearson_mat) < quantile_mat["Pearson", 1]) &
+                  (abs(cor_blomqvist_mat) > quantile_mat["Blomqvist's Beta", 2]))
+cor_contrast_ind7 <- which(cor_contrast7, arr.ind = T)
+cor_contrast_ind7 <- contrast_helper(cor_contrast_ind7, 3)
+
+nrow(cor_contrast_ind7)
+```
+
+## 2-7-2. Visualization of Low Pearson (< 10%) and high Blomqvist's beta (> 95%) (linearity vs monotone)
+
+```{r}
+# par(mfrow = c(2, 5))
+# for (i in 1:nrow(cor_contrast_ind7)){
+#   index1 <- cor_contrast_ind7[i, 1]; index2 <- cor_contrast_ind7[i, 2]
+#   plot(saver_mat[,index1], saver_mat[,index2], col = sub_cluster_labels, asp = T,
+#        pch = 16, xlab = paste0(colnames(saver_mat)[index1], ", (", index1, ")"),
+#        ylab = paste0(colnames(saver_mat)[index2], ", (", index2, ")"), 
+#        main = paste(paste0("Pearson of ", round(cor_pearson_mat[index1, index2], 3)),
+#                     "\n",
+#                     paste0("Beta of ", round(cor_blomqvist_mat[index1, index2], 3))))
+# }
+```
+
+## 2-8-1. High Pearson (> 95%) and Low Blomqvist's beta (< 10%) (linearity vs monotone)
+
+```{r}
+cor_contrast8 <- ((abs(cor_pearson_mat) > quantile_mat["Pearson", 2]) &
+                  (abs(cor_blomqvist_mat) < quantile_mat["Blomqvist's Beta", 1]))
+cor_contrast_ind8 <- which(cor_contrast8, arr.ind = T)
+cor_contrast_ind8 <- contrast_helper(cor_contrast_ind8, 3)
+
+nrow(cor_contrast_ind8)
+```
+
+## 2-8-2. Visualization of High Pearson (> 95%) and Low Blomqvist's beta (< 10%) (linearity vs monotone)
+
+```{r}
+par(mfrow = c(2, 2))
+for (i in 1:nrow(cor_contrast_ind8)){
+  index1 <- cor_contrast_ind8[i, 1]; index2 <- cor_contrast_ind8[i, 2]
+  plot(saver_mat[,index1], saver_mat[,index2], col = sub_cluster_labels, asp = T,
+       pch = 16, xlab = paste0(colnames(saver_mat)[index1], ", (", index1, ")"),
+       ylab = paste0(colnames(saver_mat)[index2], ", (", index2, ")"),
+       main = paste(paste0("Pearson of ", round(cor_pearson_mat[index1, index2], 3)),
+                    "\n",
+                    paste0("Beta of ", round(cor_blomqvist_mat[index1, index2], 3))))
+}
+```
+
+## 2-9-1. Low Pearson (< 10%) and high Mutual Information (> 95%) (linearity vs information)
+
+```{r}
+cor_contrast9 <- ((abs(cor_pearson_mat) < quantile_mat["Pearson", 1]) &
+                  (abs(cor_blomqvist_mat) > quantile_mat["NMI", 2]))
+cor_contrast_ind9 <- which(cor_contrast9, arr.ind = T)
+cor_contrast_ind9 <- contrast_helper(cor_contrast_ind9, 3)
+
+nrow(cor_contrast_ind9)
+```
+
+## 2-9-2. Visualization of Low Pearson (< 10%) and high Mutual Information (> 95%) (linearity vs information)
+
+```{r}
+par(mfrow = c(2, 5))
+for (i in 1:nrow(cor_contrast_ind9)){
+  index1 <- cor_contrast_ind9[i, 1]; index2 <- cor_contrast_ind9[i, 2]
+  plot(saver_mat[,index1], saver_mat[,index2], col = sub_cluster_labels, asp = T,
+       pch = 16, xlab = paste0(colnames(saver_mat)[index1], ", (", index1, ")"),
+       ylab = paste0(colnames(saver_mat)[index2], ", (", index2, ")"), 
+       main = paste(paste0("Pearson of ", round(cor_pearson_mat[index1, index2], 3)),
+                    "\n",
+                    paste0("MI of ", round(cor_MI_mat[index1, index2], 3))))
+}
+```
+
+## 2-10-1. High Pearson (> 95%) and Low Mutual Information (< 10%) (linearity vs information)
+
+```{r}
+cor_contrast10 <- ((abs(cor_pearson_mat) > quantile_mat["Pearson", 2]) &
+                  (abs(cor_blomqvist_mat) < quantile_mat["NMI", 1]))
+cor_contrast_ind10 <- which(cor_contrast10, arr.ind = T)
+cor_contrast_ind10 <- contrast_helper(cor_contrast_ind10, 3)
+
+nrow(cor_contrast_ind10)
+```
+
+## 2-10-2. Visualization of High Pearson (> 95%) and Low Mutual Information (< 10%) (linearity vs information)
+
+```{r}
+# par(mfrow = c(2, 5))
+# for (i in 1:nrow(cor_contrast_ind10)){
+#   index1 <- cor_contrast_ind10[i, 1]; index2 <- cor_contrast_ind10[i, 2]
+#   plot(saver_mat[,index1], saver_mat[,index2], col = sub_cluster_labels, asp = T,
+#        pch = 16, xlab = paste0(colnames(saver_mat)[index1], ", (", index1, ")"),
+#        ylab = paste0(colnames(saver_mat)[index2], ", (", index2, ")"), 
+#        main = paste(paste0("Pearson of ", round(cor_pearson_mat[index1, index2], 3)),
+#                     "\n",
+#                     paste0("MI of ", round(cor_MI_mat[index1, index2], 3))))
+# }
+```
+
+## 2-11-1. Low Pearson (< 10%) and High XI (> 95%) (linearity vs non-linearity)
+
+```{r}
+cor_contrast11 <- ((abs(cor_pearson_mat) < quantile_mat["Pearson", 1]) &
+                  (abs(cor_XI_mat) > quantile_mat["XI Corr", 2]))
+cor_contrast_ind11 <- which(cor_contrast11, arr.ind = T)
+cor_contrast_ind11 <- contrast_helper(cor_contrast_ind11, 3)
+
+nrow(cor_contrast_ind11)
+```
+
+## 2-11-2. Visualization of Low Pearson (< 10%) and High XI (> 95%) (linearity vs non-linearity)
+
+```{r}
+par(mfrow = c(2, 5))
+for (i in 1:nrow(cor_contrast_ind11)){
+  index1 <- cor_contrast_ind11[i, 1]; index2 <- cor_contrast_ind11[i, 2]
+  plot(saver_mat[,index1], saver_mat[,index2], col = sub_cluster_labels, asp = T,
+       pch = 16, xlab = paste0(colnames(saver_mat)[index1], ", (", index1, ")"),
+       ylab = paste0(colnames(saver_mat)[index2], ", (", index2, ")"), 
+       main = paste(paste0("Pearson of ", round(cor_pearson_mat[index1, index2], 3)),
+                    "\n",
+                    paste0("XI Corr of ", round(cor_XI_mat[index1, index2], 3))))
+}
+```
+
+## 2-12-1. High Pearson (> 95%) and Low XI (< 10%) (linearity vs non-linearity)
+
+```{r}
+cor_contrast12 <- ((abs(cor_pearson_mat) > quantile_mat["Pearson", 2]) &
+                  (abs(cor_XI_mat) < quantile_mat["XI Corr", 1]))
+cor_contrast_ind12 <- which(cor_contrast12, arr.ind = T)
+cor_contrast_ind12 <- contrast_helper(cor_contrast_ind12, 3)
+
+nrow(cor_contrast_ind12)
+```
+
+## 2-12-2. Visualization of High Pearson (> 95%) and Low XI (< 10%) (linearity vs non-linearity)
+
+```{r}
+par(mfrow = c(2, 5))
+for (i in 1:nrow(cor_contrast_ind12)){
+  index1 <- cor_contrast_ind12[i, 1]; index2 <- cor_contrast_ind12[i, 2]
+  plot(saver_mat[,index1], saver_mat[,index2], col = sub_cluster_labels, asp = T,
+       pch = 16, xlab = paste0(colnames(saver_mat)[index1], ", (", index1, ")"),
+       ylab = paste0(colnames(saver_mat)[index2], ", (", index2, ")"), 
+       main = paste(paste0("Pearson of ", round(cor_pearson_mat[index1, index2], 3)),
+                    "\n",
+                    paste0("XI Corr of ", round(cor_XI_mat[index1, index2], 3))))
+}
+```
+
+## 2-13-1. Low Spearman (< 10%) and High Distance Correlation (> 95%) (monotone vs non-linearity)
+
+```{r}
+cor_contrast13 <- ((abs(cor_spearman_mat) < quantile_mat["Spearman", 1]) &
+                   (abs(cor_dist_mat) > quantile_mat["Dist. Corr", 2]))
+cor_contrast_ind13 <- which(cor_contrast13, arr.ind = T)
+cor_contrast_ind13 <- contrast_helper(cor_contrast_ind13, 3)
+
+nrow(cor_contrast_ind13)
+```
+
+## 2-13-2. Visualization of Low Spearman (< 10%) and High Distance Correlation (> 95%) (monotone vs non-linearity)
+
+```{r}
+par(mfrow = c(2, 5))
+for (i in 1:nrow(cor_contrast_ind13)){
+  index1 <- cor_contrast_ind13[i, 1]; index2 <- cor_contrast_ind13[i, 2]
+  plot(saver_mat[,index1], saver_mat[,index2], col = sub_cluster_labels, asp = T,
+       pch = 16, xlab = paste0(colnames(saver_mat)[index1], ", (", index1, ")"),
+       ylab = paste0(colnames(saver_mat)[index2], ", (", index2, ")"),
+       main = paste(paste0("Spearman of ", round(cor_spearman_mat[index1, index2], 3)),
+                    "\n",
+                    paste0("Dist. Cor of ", round(cor_dist_mat[index1, index2], 3))))
+}
+```
+
+## 2-14-1. High Spearman (> 95%) and Low Distance Correlation (< 10%) (monotone vs non-linearity)
+
+```{r}
+cor_contrast14 <- ((abs(cor_spearman_mat) > quantile_mat["Spearman", 2]) &
+                  (abs(cor_dist_mat) < quantile_mat["Dist. Corr", 1]))
+cor_contrast_ind14 <- which(cor_contrast14, arr.ind = T)
+cor_contrast_ind14 <- contrast_helper(cor_contrast_ind14, 3)
+
+nrow(cor_contrast_ind14)
+```
+
+## 2-14-2. Visualization of High Spearman (> 95%) and Low Distance Correlation (< 10%) (monotone vs non-linearity)
+
+```{r}
+par(mfrow = c(2, 5))
+for (i in 1:nrow(cor_contrast_ind14)){
+  index1 <- cor_contrast_ind14[i, 1]; index2 <- cor_contrast_ind14[i, 2]
+  plot(saver_mat[,index1], saver_mat[,index2], col = sub_cluster_labels, asp = T,
+       pch = 16, xlab = paste0(colnames(saver_mat)[index1], ", (", index1, ")"),
+       ylab = paste0(colnames(saver_mat)[index2], ", (", index2, ")"), 
+       main = paste(paste0("Spearman of ", round(cor_spearman_mat[index1, index2], 3)),
+                    "\n",
+                    paste0("Dist. Cor of ", round(cor_dist_mat[index1, index2], 3))))
+}
+```
+
+## 2-15-1. Low Spearman (< 10%) and High Blomqvist's Beta (> 95%) (monotone vs monotone)
+
+```{r}
+cor_contrast15 <- ((abs(cor_spearman_mat) < quantile_mat["Spearman", 1]) &
+                  (abs(cor_blomqvist_mat) > quantile_mat["Blomqvist's Beta", 2]))
+cor_contrast_ind15 <- which(cor_contrast15, arr.ind = T)
+cor_contrast_ind15 <- contrast_helper(cor_contrast_ind15, 3)
+
+nrow(cor_contrast_ind15)
+```
+
+## 2-15-2. Visualization of Low Spearman (< 10%) and High Blomqvist's Beta (> 95%) (monotone vs monotone)
+
+```{r}
+# par(mfrow = c(2, 5))
+# for (i in 1:nrow(cor_contrast_ind15)){
+#   index1 <- cor_contrast_ind15[i, 1]; index2 <- cor_contrast_ind15[i, 2]
+#   plot(saver_mat[,index1], saver_mat[,index2], col = sub_cluster_labels, asp = T,
+#        pch = 16, xlab = paste0(colnames(saver_mat)[index1], ", (", index1, ")"),
+#        ylab = paste0(colnames(saver_mat)[index2], ", (", index2, ")"), 
+#        main = paste(paste0("Spearman of ", round(cor_spearman_mat[index1, index2], 3)),
+#                     "\n",
+#                     paste0("Beta of ", round(cor_blomqvist_mat[index1, index2], 3))))
+# }
+```
+
+## 2-16-1. High Spearman (> 95%) and Low Blomqvist's Beta (< 10%) (monotone vs monotone)
+
+```{r}
+cor_contrast16 <- ((abs(cor_spearman_mat) > quantile_mat["Spearman", 2]) &
+                  (abs(cor_blomqvist_mat) < quantile_mat["Blomqvist's Beta", 1]))
+cor_contrast_ind16 <- which(cor_contrast16, arr.ind = T)
+cor_contrast_ind16 <- contrast_helper(cor_contrast_ind16, 3)
+
+nrow(cor_contrast_ind16)
+```
+
+## 2-16-2. Visualization of High Spearman (> 95%) and Low Blomqvist's Beta (< 10%) (monotone vs monotone)
+
+```{r}
+par(mfrow = c(2, 4))
+for (i in 1:nrow(cor_contrast_ind16)){
+  index1 <- cor_contrast_ind16[i, 1]; index2 <- cor_contrast_ind16[i, 2]
+  plot(saver_mat[,index1], saver_mat[,index2], col = sub_cluster_labels, asp = T,
+       pch = 16, xlab = paste0(colnames(saver_mat)[index1], ", (", index1, ")"),
+       ylab = paste0(colnames(saver_mat)[index2], ", (", index2, ")"), 
+       main = paste(paste0("Spearman of ", round(cor_spearman_mat[index1, index2], 3)),
+                    "\n",
+                    paste0("Beta of ", round(cor_blomqvist_mat[index1, index2], 3))))
+}
+```
+
+## 2-17-1. Low Spearman (< 10%) and High Hoeffding's D (> 95%) (monotone vs monotone)
+
+```{r}
+cor_contrast17 <- ((abs(cor_spearman_mat) < quantile_mat["Spearman", 1]) &
+                  (abs(cor_blomqvist_mat) > quantile_mat["Hoeffding's D", 2]))
+cor_contrast_ind17 <- which(cor_contrast17, arr.ind = T)
+cor_contrast_ind17 <- contrast_helper(cor_contrast_ind17, 3)
+
+nrow(cor_contrast_ind17)
+```
+
+## 2-17-2. Visualization of Low Spearman (< 10%) and High Hoeffding's D (> 95%) (monotone vs monotone)
+
+```{r}
+par(mfrow = c(2, 5))
+for (i in 1:nrow(cor_contrast_ind17)){
+  index1 <- cor_contrast_ind17[i, 1]; index2 <- cor_contrast_ind17[i, 2]
+  plot(saver_mat[,index1], saver_mat[,index2], col = sub_cluster_labels, asp = T,
+       pch = 16, xlab = paste0(colnames(saver_mat)[index1], ", (", index1, ")"),
+       ylab = paste0(colnames(saver_mat)[index2], ", (", index2, ")"), 
+       main = paste(paste0("Spearman of ", round(cor_spearman_mat[index1, index2], 3)),
+                    "\n",
+                    paste0("Hoeff D of ", round(cor_hoeffd_mat[index1, index2], 3))))
+}
+```
+
+## 2-18-1. High Spearman (> 95%) and Low Hoeffding's D (< 10%) (monotone vs monotone)
+
+```{r}
+cor_contrast18 <- ((abs(cor_spearman_mat) > quantile_mat["Spearman", 2]) &
+                  (abs(cor_blomqvist_mat) < quantile_mat["Hoeffding's D", 1]))
+cor_contrast_ind18 <- which(cor_contrast18, arr.ind = T)
+cor_contrast_ind18 <- contrast_helper(cor_contrast_ind18, 3)
+
+nrow(cor_contrast_ind18)
+```
+
+## 2-18-2. Visualization of High Spearman (> 95%) and Low Hoeffding's D (< 10%) (monotone vs monotone)
+
+```{r}
+# par(mfrow = c(2, 5))
+# for (i in 1:nrow(cor_contrast_ind18)){
+#   index1 <- cor_contrast_ind18[i, 1]; index2 <- cor_contrast_ind18[i, 2]
+#   plot(saver_mat[,index1], saver_mat[,index2], col = sub_cluster_labels, asp = T,
+#        pch = 16, xlab = paste0(colnames(saver_mat)[index1], ", (", index1, ")"),
+#        ylab = paste0(colnames(saver_mat)[index2], ", (", index2, ")"), 
+#        main = paste(paste0("Spearman of ", round(cor_spearman_mat[index1, index2], 3)),
+#                     "\n",
+#                     paste0("Hoeff D of ", round(cor_hoeffd_mat[index1, index2], 3))))
+# }
+```
+
+## 2-19-1. Low Spearman (< 10%) and high Mutual Information (> 95%) (monotone vs information)
+
+```{r}
+cor_contrast19 <- ((abs(cor_spearman_mat) < quantile_mat["Spearman", 1]) &
+                  (abs(cor_blomqvist_mat) > quantile_mat["NMI", 2]))
+cor_contrast_ind19 <- which(cor_contrast19, arr.ind = T)
+cor_contrast_ind19 <- contrast_helper(cor_contrast_ind19, 3)
+
+nrow(cor_contrast_ind19)
+```
+
+## 2-19-2. Visualization of Low Spearman (< 10%) and high Mutual Information (> 95%) (monotone vs information)
+
+```{r}
+par(mfrow = c(2, 5))
+for (i in 1:nrow(cor_contrast_ind19)){
+  index1 <- cor_contrast_ind19[i, 1]; index2 <- cor_contrast_ind19[i, 2]
+  plot(saver_mat[,index1], saver_mat[,index2], col = sub_cluster_labels, asp = T,
+       pch = 16, xlab = paste0(colnames(saver_mat)[index1], ", (", index1, ")"),
+       ylab = paste0(colnames(saver_mat)[index2], ", (", index2, ")"), 
+       main = paste(paste0("Spearman of ", round(cor_spearman_mat[index1, index2], 3)),
+                    "\n",
+                    paste0("MI of ", round(cor_MI_mat[index1, index2], 3))))
+}
+```
+
+## 2-20-1. High Spearman (> 95%) and Low Mutual Information (< 10%) (monotone vs information)
+
+```{r}
+cor_contrast20 <- ((abs(cor_spearman_mat) > quantile_mat["Spearman", 2]) &
+                  (abs(cor_blomqvist_mat) < quantile_mat["NMI", 1]))
+cor_contrast_ind20 <- which(cor_contrast20, arr.ind = T)
+cor_contrast_ind20 <- contrast_helper(cor_contrast_ind20, 3)
+
+nrow(cor_contrast_ind20)
+```
+
+## 2-20-2. Visualization of High Spearman (> 95%) and Low Mutual Information (< 10%) (monotone vs information)
+
+```{r}
+# par(mfrow = c(2, 5))
+# for (i in 1:nrow(cor_contrast_ind20)){
+#   index1 <- cor_contrast_ind20[i, 1]; index2 <- cor_contrast_ind20[i, 2]
+#   plot(saver_mat[,index1], saver_mat[,index2], col = sub_cluster_labels, asp = T,
+#        pch = 16, xlab = paste0(colnames(saver_mat)[index1], ", (", index1, ")"),
+#        ylab = paste0(colnames(saver_mat)[index2], ", (", index2, ")"), 
+#        main = paste(paste0("Spearman of ", round(cor_spearman_mat[index1, index2], 3)),
+#                     "\n",
+#                     paste0("MI of ", round(cor_MI_mat[index1, index2], 3))))
+# }
+```
+
+## 2-21-1. Low Spearman (< 10%) and High XI (> 95%) (monotone vs non-linearity)
+
+```{r}
+cor_contrast21 <- ((abs(cor_spearman_mat) < quantile_mat["Spearman", 1]) &
+                  (abs(cor_XI_mat) > quantile_mat["XI Corr", 2]))
+cor_contrast_ind21 <- which(cor_contrast21, arr.ind = T)
+cor_contrast_ind21 <- contrast_helper(cor_contrast_ind21, 3)
+
+nrow(cor_contrast_ind21)
+```
+
+## 2-21-2. Visualization of Low Spearman (< 10%) and High XI (> 95%) (monotone vs non-linearity)
+
+```{r}
+par(mfrow = c(2, 5))
+for (i in 1:nrow(cor_contrast_ind21)){
+  index1 <- cor_contrast_ind21[i, 1]; index2 <- cor_contrast_ind21[i, 2]
+  plot(saver_mat[,index1], saver_mat[,index2], col = sub_cluster_labels, asp = T,
+       pch = 16, xlab = paste0(colnames(saver_mat)[index1], ", (", index1, ")"),
+       ylab = paste0(colnames(saver_mat)[index2], ", (", index2, ")"), 
+       main = paste(paste0("Spearman of ", round(cor_spearman_mat[index1, index2], 3)),
+                    "\n",
+                    paste0("XI of ", round(cor_XI_mat[index1, index2], 3))))
+}
+```
+
+## 2-22-1. High Spearman (> 95%) and Low XI (< 10%) (monotone vs non-linearity)
+
+```{r}
+cor_contrast22 <- ((abs(cor_spearman_mat) > quantile_mat["Spearman", 2]) &
+                  (abs(cor_XI_mat) < quantile_mat["XI Corr", 1]))
+cor_contrast_ind22 <- which(cor_contrast22, arr.ind = T)
+cor_contrast_ind22 <- contrast_helper(cor_contrast_ind22, 3)
+
+nrow(cor_contrast_ind22)
+```
+
+## 2-22-2. Visualization of High Spearman (> 95%) and Low XI (< 10%) (monotone vs non-linearity)
+
+```{r}
+par(mfrow = c(2, 5))
+for (i in 1:nrow(cor_contrast_ind22)){
+  index1 <- cor_contrast_ind22[i, 1]; index2 <- cor_contrast_ind22[i, 2]
+  plot(saver_mat[,index1], saver_mat[,index2], col = sub_cluster_labels, asp = T,
+       pch = 16, xlab = paste0(colnames(saver_mat)[index1], ", (", index1, ")"),
+       ylab = paste0(colnames(saver_mat)[index2], ", (", index2, ")"), 
+       main = paste(paste0("Spearman of ", round(cor_spearman_mat[index1, index2], 3)),
+                    "\n",
+                    paste0("XI Corr of ", round(cor_XI_mat[index1, index2], 3))))
+}
+```
+
+## 2-23-1. Low Distance Correlation (< 10%) and High Hoeffiding's D (> 95%) (non-linearity vs monotone)
+
+```{r}
+cor_contrast23 <- ((abs(cor_dist_mat) < quantile_mat["Dist. Corr", 1]) &
+                   (abs(cor_hoeffd_mat) > quantile_mat["Hoeffding's D", 2]))
+cor_contrast_ind23 <- which(cor_contrast23, arr.ind = T)
+cor_contrast_ind23 <- contrast_helper(cor_contrast_ind23, 3)
+
+nrow(cor_contrast_ind23)
+```
+
+## 2-23-2. Visualization of Low Distance Correlation (< 10%) and High Hoeffiding's D (> 95%) (non-linearity vs monotone)
+
+```{r}
+par(mfrow = c(2, 5))
+for (i in 1:nrow(cor_contrast_ind23)){
+  index1 <- cor_contrast_ind23[i, 1]; index2 <- cor_contrast_ind23[i, 2]
+  plot(saver_mat[,index1], saver_mat[,index2], col = sub_cluster_labels, asp = T,
+       pch = 16, xlab = paste0(colnames(saver_mat)[index1], ", (", index1, ")"),
+       ylab = paste0(colnames(saver_mat)[index2], ", (", index2, ")"),
+       main = paste(paste0("Dist. Cor of ", round(cor_dist_mat[index1, index2], 3)),
+                    "\n",
+                    paste0("Hoeffiding's D of ", round(cor_hoeffd_mat[index1, index2], 3))))
+}
+```
+
+## 2-24-1. High Distance Correlation (> 95%) and Low Hoeffiding's D (< 10%) (non-linearity vs monotone)
+
+```{r}
+cor_contrast24 <- ((abs(cor_dist_mat) > quantile_mat["Dist. Corr", 2]) &
+                   (abs(cor_hoeffd_mat) < quantile_mat["Hoeffding's D", 1]))
+cor_contrast_ind24 <- which(cor_contrast24, arr.ind = T)
+cor_contrast_ind24 <- contrast_helper(cor_contrast_ind24, 3)
+
+nrow(cor_contrast_ind24)
+```
+
+## 2-24-2. Visualization of High Distance Correlation (> 95%) and Low Hoeffiding's D (< 10%) (non-linearity vs monotone)
+
+```{r}
+par(mfrow = c(2, 5))
+for (i in 1:nrow(cor_contrast_ind24)){
+  index1 <- cor_contrast_ind24[i, 1]; index2 <- cor_contrast_ind24[i, 2]
+  plot(saver_mat[,index1], saver_mat[,index2], col = sub_cluster_labels, asp = T,
+       pch = 16, xlab = paste0(colnames(saver_mat)[index1], ", (", index1, ")"),
+       ylab = paste0(colnames(saver_mat)[index2], ", (", index2, ")"), 
+       main = paste(paste0("Dist. Cor of ", round(cor_dist_mat[index1, index2], 3)),
+                    "\n",
+                    paste0("Hoeffiding's D of ", round(cor_hoeffd_mat[index1, index2], 3))))
+}
+```
+
+## 2-25-1. Low Distance Correlation (< 10%) and High XI (> 95%) (non-linearity vs non-linearity)
+
+```{r}
+cor_contrast25 <- ((abs(cor_dist_mat) < quantile_mat["Dist. Corr", 1]) &
+                   (abs(cor_XI_mat) > quantile_mat["XI Corr", 2]))
+cor_contrast_ind25 <- which(cor_contrast25, arr.ind = T)
+cor_contrast_ind25 <- contrast_helper(cor_contrast_ind25, 3)
+
+nrow(cor_contrast_ind25)
+```
+
+## 2-25-2. Visualization of Low Distance Correlation (< 10%) and High XI (> 95%) (non-linearity vs non-linearity)
+
+```{r}
+par(mfrow = c(2, 5))
+for (i in 1:nrow(cor_contrast_ind25)){
+  index1 <- cor_contrast_ind25[i, 1]; index2 <- cor_contrast_ind25[i, 2]
+  plot(saver_mat[,index1], saver_mat[,index2], col = sub_cluster_labels, asp = T,
+       pch = 16, xlab = paste0(colnames(saver_mat)[index1], ", (", index1, ")"),
+       ylab = paste0(colnames(saver_mat)[index2], ", (", index2, ")"), 
+       main = paste(paste0("Dist. Cor of ", round(cor_dist_mat[index1, index2], 3)),
+                    "\n",
+                    paste0("XI Corr of ", round(cor_XI_mat[index1, index2], 3))))
+}
+```
+
+## 2-26-1. High Distance Correlation (> 95%) and Low XI (< 10%) (non-linearity vs non-linearity)
+
+```{r}
+cor_contrast26 <- ((abs(cor_dist_mat) > quantile_mat["Dist. Corr", 2]) &
+                   (abs(cor_XI_mat) < quantile_mat["XI Corr", 1]))
+cor_contrast_ind26 <- which(cor_contrast26, arr.ind = T)
+cor_contrast_ind26 <- contrast_helper(cor_contrast_ind26, 3)
+
+nrow(cor_contrast_ind26)
+```
+
+## 2-26-2. Visualization of High Distance Correlation (> 95%) and Low XI (< 10%) (non-linearity vs non-linearity)
+
+```{r}
+par(mfrow = c(2, 5))
+for (i in 1:nrow(cor_contrast_ind26)){
+  index1 <- cor_contrast_ind26[i, 1]; index2 <- cor_contrast_ind26[i, 2]
+  plot(saver_mat[,index1], saver_mat[,index2], col = sub_cluster_labels, asp = T,
+       pch = 16, xlab = paste0(colnames(saver_mat)[index1], ", (", index1, ")"),
+       ylab = paste0(colnames(saver_mat)[index2], ", (", index2, ")"), 
+       main = paste(paste0("Dist. Cor of ", round(cor_dist_mat[index1, index2], 3)),
+                    "\n",
+                    paste0("XI of ", round(cor_XI_mat[index1, index2], 3))))
+}
+```
+
+## 2-27-1. Low Distance Correlation (< 10%) and High Blomqvist's Beta (> 95%) (non-linearity vs non-linearity)
+
+```{r}
+cor_contrast27 <- ((abs(cor_dist_mat) < quantile_mat["Dist. Corr", 1]) &
+                   (abs(cor_blomqvist_mat) > quantile_mat["Blomqvist's Beta", 2]))
+cor_contrast_ind27 <- which(cor_contrast27, arr.ind = T)
+cor_contrast_ind27 <- contrast_helper(cor_contrast_ind27, 3)
+
+nrow(cor_contrast_ind27)
+```
+
+## 2-27-2. Visualization of Low Distance Correlation (< 10%) and High Blomqvist's Beta (> 95%) (non-linearity vs non-linearity)
+
+```{r}
+# par(mfrow = c(2, 5))
+# for (i in 1:nrow(cor_contrast_ind27)){
+#   index1 <- cor_contrast_ind27[i, 1]; index2 <- cor_contrast_ind27[i, 2]
+#   plot(saver_mat[,index1], saver_mat[,index2], col = sub_cluster_labels, asp = T,
+#        pch = 16, xlab = paste0(colnames(saver_mat)[index1], ", (", index1, ")"),
+#        ylab = paste0(colnames(saver_mat)[index2], ", (", index2, ")"), 
+#        main = paste(paste0("Dist. Cor of ", round(cor_dist_mat[index1, index2], 3)),
+#                     "\n",
+#                     paste0("Beta of ", round(cor_blomqvist_mat[index1, index2], 3))))
+# }
+```
+
+## 2-28-1. High Distance Correlation (> 95%) and Low Blomqvist's Beta (< 10%) (non-linearity vs non-linearity)
+
+```{r}
+cor_contrast28 <- ((abs(cor_dist_mat) > quantile_mat["Dist. Corr", 2]) &
+                   (abs(cor_blomqvist_mat) < quantile_mat["Blomqvist's Beta", 1]))
+cor_contrast_ind28 <- which(cor_contrast28, arr.ind = T)
+cor_contrast_ind28 <- contrast_helper(cor_contrast_ind28, 3)
+
+nrow(cor_contrast_ind28)
+```
+
+## 2-28-2. Visualization of High Distance Correlation (> 95%) and Low Blomqvist's Beta (< 10%) (non-linearity vs non-linearity)
+
+```{r}
+# par(mfrow = c(2, 5))
+# for (i in 1:nrow(cor_contrast_ind28)){
+#   index1 <- cor_contrast_ind28[i, 1]; index2 <- cor_contrast_ind28[i, 2]
+#   plot(saver_mat[,index1], saver_mat[,index2], col = sub_cluster_labels, asp = T,
+#        pch = 16, xlab = paste0(colnames(saver_mat)[index1], ", (", index1, ")"),
+#        ylab = paste0(colnames(saver_mat)[index2], ", (", index2, ")"), 
+#        main = paste(paste0("Dist. Cor of ", round(cor_dist_mat[index1, index2], 3)),
+#                     "\n",
+#                     paste0("Beta of ", round(cor_blomqvist_mat[index1, index2], 3))))
+# }
+```
+
+# 3. Explore dense plots
+
+## 3-1. Visualize dense plot
+
+```{r}
+dense_ind <- rbind(c(50, 10), c(66, 53), c(473, 400), c(389, 1),
+                   c(397, 147), c(133, 106), c(30, 28))
+
+dense_title <- 
+  c(paste(paste0("Pearson of ", round(cor_pearson_mat[dense_ind[1,1], dense_ind[1,2]], 3),
+                         "  XI of ", round(cor_XI_mat[dense_ind[1,1], dense_ind[1,2]], 3)),
+                  "\n",
+                  paste0("Kendall of ", round(cor_kendall_mat[dense_ind[1,1], dense_ind[1,2]], 3),
+                         "  Dist Cor. of ", round(cor_dist_mat[dense_ind[1,1], dense_ind[1,2]], 3))),
+    paste(paste0("Pearson of ", round(cor_pearson_mat[dense_ind[2,1], dense_ind[2,2]], 3),
+                         "  XI of ", round(cor_XI_mat[dense_ind[2,1], dense_ind[2,2]], 3)),
+                  "\n",
+                  paste0("Kendall of ", round(cor_kendall_mat[dense_ind[2,1], dense_ind[2,2]], 3),
+                         "  Dist Cor. of ", round(cor_dist_mat[dense_ind[2,1], dense_ind[2,2]], 3))),
+    paste(paste0("XI of ", round(cor_XI_mat[dense_ind[3,1], dense_ind[3,2]], 3)),
+                  "\n",
+                  paste0("Pearson of ", round(cor_pearson_mat[dense_ind[3,1], dense_ind[3,2]], 3),
+                         "  Dist Cor of ", round(cor_dist_mat[dense_ind[3,1], dense_ind[3,2]], 3))),
+    paste(paste0("XI of ", round(cor_XI_mat[dense_ind[4,1], dense_ind[4,2]], 3)),
+                 "  NMI of ", round(cor_MI_mat[dense_ind[4,1], dense_ind[4,2]], 3),
+                  "\n",
+                  paste0("Hoeff D of ", round(cor_hoeffd_mat[dense_ind[4,1], dense_ind[4,2]], 3))),
+    paste(paste0("XI of ", round(cor_XI_mat[dense_ind[5,1], dense_ind[5,2]], 3)),
+                  "\n",
+          paste0("NMI of ", round(cor_MI_mat[dense_ind[5,1], dense_ind[5,2]], 3),
+                         "  Dist Cor of ", round(cor_dist_mat[dense_ind[5,1], dense_ind[5,2]], 3))),
+    paste(paste0("XI of ", round(cor_XI_mat[dense_ind[6,1], dense_ind[6,2]], 3)),
+                  "\n",
+          paste0("NMI of ", round(cor_MI_mat[dense_ind[6,1], dense_ind[6,2]], 3),
+                 "  Hoeff D of ", round(cor_hoeffd_mat[dense_ind[6,1], dense_ind[6,2]], 3))),
+    paste(paste0("XI of ", round(cor_XI_mat[dense_ind[7,1], dense_ind[7,2]], 3)),
+                  "\n",
+          paste0("Hoeff D of ", round(cor_hoeffd_mat[dense_ind[7,1], dense_ind[7,2]], 3),
+                 "  NMI of ", round(cor_MI_mat[dense_ind[7,1], dense_ind[7,2]], 3))))
+```
+
+```{r}
+index1 <- dense_ind[1, 1]; index2 <- dense_ind[1, 2];
+plot(saver_mat[,index1], saver_mat[,index2], col = sub_cluster_labels, asp = T,
+     pch = 16, xlab = paste0(colnames(saver_mat)[index1], ", (", index1, ")"),
+     ylab = paste0(colnames(saver_mat)[index2], ", (", index2, ")"),
+     main = dense_title[1]
+     )
+```
+
+- The plot depicts a vertical line above, having a relatively high XI and Pearson correlation. As the pattern is vertical, it is hard to have a monotonic relationship of X and Y that it has low kendall coefficient. Also, it is not dense, so it would have low distance correlation.
+
+```{r}
+index1 <- dense_ind[2, 1]; index2 <- dense_ind[2, 2];
+plot(saver_mat[,index1], saver_mat[,index2], col = sub_cluster_labels, asp = T,
+     pch = 16, xlab = paste0(colnames(saver_mat)[index1], ", (", index1, ")"),
+     ylab = paste0(colnames(saver_mat)[index2], ", (", index2, ")"),
+     main = dense_title[2]
+)
+```
+
+- It is interesting to see that the plot shows a dense cluster on the middle bottom. However, it has lower distance correlation and high pearson correlation.
+
+```{r}
+index1 <- dense_ind[3, 1]; index2 <- dense_ind[3, 2];
+plot(saver_mat[,index1], saver_mat[,index2], col = sub_cluster_labels, asp = T,
+     pch = 16, xlab = paste0(colnames(saver_mat)[index1], ", (", index1, ")"),
+     ylab = paste0(colnames(saver_mat)[index2], ", (", index2, ")"),
+     main = dense_title[3]
+     )
+```
+
+- As the points are stretched along the horizontal line, it has a very low pearson correlation and distance correlation.
+
+```{r}
+index1 <- dense_ind[4, 1]; index2 <- dense_ind[4, 2];
+plot(saver_mat[,index1], saver_mat[,index2], col = sub_cluster_labels, asp = T,
+     pch = 16, xlab = paste0(colnames(saver_mat)[index1], ", (", index1, ")"),
+     ylab = paste0(colnames(saver_mat)[index2], ", (", index2, ")"),
+     main = dense_title[4]
+     )
+```
+
+- It shows a vertical line that the pattern has high XI and NMI correlation. It is interesting to see that NMI is high; it is unsure, but it might be most of the points are around SERF2 = 0 and $\text{TMSB4X} < 500$
+
+```{r}
+index1 <- dense_ind[5, 1]; index2 <- dense_ind[5, 2];
+plot(saver_mat[,index1], saver_mat[,index2], col = sub_cluster_labels, asp = T,
+     pch = 16, xlab = paste0(colnames(saver_mat)[index1], ", (", index1, ")"),
+     ylab = paste0(colnames(saver_mat)[index2], ", (", index2, ")"),
+     main = dense_title[5]
+     )
+```
+
+- The plot above illustrates that the points are scattered horizontally. It is worth noting that all the plots have higher values of XI.
+
+```{r}
+index1 <- dense_ind[6, 1]; index2 <- dense_ind[6, 2];
+plot(saver_mat[,index1], saver_mat[,index2], col = sub_cluster_labels, asp = T,
+     pch = 16, xlab = paste0(colnames(saver_mat)[index1], ", (", index1, ")"),
+     ylab = paste0(colnames(saver_mat)[index2], ", (", index2, ")"),
+     main = dense_title[6]
+     )
+```
+
+```{r}
+index1 <- dense_ind[7, 1]; index2 <- dense_ind[7, 2];
+plot(saver_mat[,index1], saver_mat[,index2], col = sub_cluster_labels, asp = T,
+     pch = 16, xlab = paste0(colnames(saver_mat)[index1], ", (", index1, ")"),
+     ylab = paste0(colnames(saver_mat)[index2], ", (", index2, ")"),
+     main = dense_title[7]
+     )
+```
+
+- It is interesting to see that the scattere points without forming a certain pattern have a high value of XI for plot 6 and plot 7.
+
+## 3-2. Visualize with alpha parameter (transparency)
+
+```{r}
+par(mfrow = c(2, 2))
+for (i in 1:nrow(dense_ind)){
+  index1 <- dense_ind[i, 1]; index2 <- dense_ind[i, 2];
+  plot(saver_mat[,index1], saver_mat[,index2], col = scales::alpha(sub_cluster_labels, 0.2), asp = T,
+       pch = 16, xlab = paste0(colnames(saver_mat)[index1], ", (", index1, ")"),
+       ylab = paste0(colnames(saver_mat)[index2], ", (", index2, ")"),
+       main = dense_title[i])
+}
+```
+
+## 3-3. Visualize with contour plots (density)
+
+```{r}
+#' Plotting density
+#'
+#' @param mat matrix
+#' @param grid_spacing numeric vector
+#' @param n integer for \code{stats::kde}
+#' @param max_num integer
+#' @param density_colors color vector
+#' @param point_color color
+#' @param contour_color color
+#' @param grid_color color
+#' @param pch integer
+#' @param contour_lwd numeric
+#' @param grid_lty integer
+#' @param grid_lwd numeric
+#' @param ... additional graphical parameters
+#'
+#' @return nothing
+#' @export
+plot_density <- function(mat, grid_spacing,
+                         xlim,
+                         ylim,
+                         n = 100,
+                         max_num = 20000,
+                         density_colors = grDevices::heat.colors(100, alpha = 0.8),
+                         point_color = grDevices::rgb(0.5, 0.5, 0.5, 0.8),
+                         contour_color = grDevices::rgb(1,1,1,0.5),
+                         grid_color = "gray",
+                         xaxt = "n",
+                         yaxt = "n",
+                         axes = F,
+                         xlab = "",
+                         ylab = "",
+                         pch = 16,
+                         contour_lwd = 2,
+                         grid_lty = 2,
+                         grid_lwd = 0.5,
+                         ...){
+  stopifnot(ncol(mat) == 2)
+
+  mat2 <- rbind(mat,
+                c(xlim[1], ylim[1]),
+                c(xlim[1], ylim[2]),
+                c(xlim[2], ylim[1]),
+                c(xlim[2], ylim[2]))
+  f1 <- MASS::kde2d(mat2[,1], mat2[,2], n = 100)
+  graphics::image(f1,
+                  col = density_colors,
+                  xlim = xlim,
+                  ylim = ylim,
+                  ...)
+
+  for(i in grid_spacing){
+    graphics::lines(rep(i,2), c(-2,2)*max(abs(grid_spacing)),
+                    lty = grid_lty,
+                    lwd = grid_lwd,
+                    col = grid_color)
+    graphics::lines(c(-2,2)*max(abs(grid_spacing)), rep(i,2),
+                    lty = grid_lty,
+                    lwd = grid_lwd,
+                    col = grid_color)
+  }
+
+  if(nrow(mat) > max_num) {
+    idx <- sample(1:nrow(mat), size = max_num)
+  } else {
+    idx <- 1:nrow(mat)
+  }
+  graphics::points(mat[idx,1], mat[idx,2],
+                   col = point_color,
+                   pch = pch)
+
+  graphics::contour(f1, add = T,
+                    drawlabels = F,
+                    col = contour_color,
+                    lwd = contour_lwd)
+
+  invisible()
+}
+
+
+```
+
+  
+```{r}
+par(mfrow = c(1, 2))
+for (i in 1:nrow(dense_ind)){
+  index1 <- dense_ind[i, 1]; index2 <- dense_ind[i, 2];
+  plot(saver_mat[,index1], saver_mat[,index2], col = sub_cluster_labels, asp = T,
+       pch = 16, xlab = paste0(colnames(saver_mat)[index1], ", (", index1, ")"),
+       ylab = paste0(colnames(saver_mat)[index2], ", (", index2, ")"),
+       main = dense_title[i])
+  xylim <- par("usr")
+  
+  x <- saver_mat[,index1]; y <- saver_mat[,index2];
+  xmin <- min(x); xmax <- max(x); ymin <- min(y); ymax <- max(y);
+  total_min <- min(xmin, ymin); total_max <- max(xmax, ymax);
+  
+  plot_density(cbind(x, y),
+               grid_spacing = seq(total_min, total_max, by=((total_max - total_min) / 10)),
+               xlim = c(xylim[1], xylim[2]), ylim = c(xylim[3], xylim[4]),
+               xlab = paste0(colnames(saver_mat)[index1], ", (", index1, ")"),
+               ylab = paste0(colnames(saver_mat)[index2], ", (", index2, ")"))
+  
+}
+```
+
+## 3-4 Visualize with HexBin
+
+```{r}
+library(hexbin)
+library(RColorBrewer)
+
+par(mfrow = c(2,3))
+for (i in 1:nrow(dense_ind)){
+  index1 <- dense_ind[i, 1]; index2 <- dense_ind[i, 2];
+  bin <- hexbin(saver_mat[,index1], saver_mat[,index2], xbins = 40)
+  my_colors=colorRampPalette(rev(brewer.pal(11, 'Spectral')))
+  plot(bin, colramp = my_colors, legend = F,
+       xlab = paste0(colnames(saver_mat)[index1], ", (", index1, ")"),
+       ylab = paste0(colnames(saver_mat)[index2], ", (", index2, ")"))
+}
+```
+
