@@ -1,7 +1,7 @@
 ---
 title: "seurat_dependency (SAVER)"
-author: "Taewan Kim"
-date: "1/3/2022"
+author: "Taewan Kim"  
+date: "3/18/2022"
 output:
     html_document:
     toc:  true
@@ -22,56 +22,39 @@ library(SAVER)
 ```{r, message=FALSE}
 # Just an example way to preprocess data, to demonstrate the PCA part
 # # You could use SCTransform into RunPCA also
-# bm <- LoadData(ds = "bmcite")
-load("SAVER_seurat.Rdata")
-
-orig_count <- Matrix::t(bm@assays$RNA@counts)
-celltype_factor <- as.numeric(as.factor(bm@meta.data$celltype.l2))
-# save(bm, saver_dat, cell_type, sub_dat, sub_celltype, store_date, file = "SAVER_seurat.Rdata")
+# bm <- suppressWarnings(LoadData(ds = "bmcite"))
+# orig_count <- Matrix::t(bm@assays$RNA@counts)
+load("CD4_dat.rds")
+load("CD4_cor_mat.rds")
+# save(cor_mat_list, file = "CD4_cor_mat.rds")
+# saver_mat <- Matrix::t(saver_dat$estimate)
+# 
+# CD4_ind <- which(as.factor(bm@meta.data$celltype.l2) == "CD4 Naive")
+# 
+# sub_dat <- saver_mat[CD4_ind, ]
+# 
+# saver_dat <- SAVER::saver(sub_dat)
+# save(saver_dat, store_date, high_gene, CD4_ind, file = "CD4_seurat.Rdata")
+# store_date <- date()
 ```
 
 ```{r}
-cell_labels <- unique(bm@meta.data$celltype.l2)
-# cell_type <- bm@meta.data$celltype.l2
-# rand_ind <- c()
-# 
-# for (cell in cell_labels){
-#   set.seed(10)
-#   subcell_ind <- which(cell_type == cell)
-#   subcell_len <- length(subcell_ind)
-#   subcell_mat <- orig_count[subcell_ind, ]
-# 
-#   row_ind <- apply(orig_count, 1, function(x){length(which(x != 0))})
-#   idx <- order(row_ind, decreasing = T)
-#   sub_rand <- sample(length(subcell_ind),
-#                      length(subcell_ind)/40)
-#   rand_ind <- c(rand_ind, idx[1:(subcell_len/30)])
-# }
-# 
-# sub_dat <- orig_count[rand_ind, ]
-# 
-# col_ind <- apply(sub_dat, 2, function(x){length(which(x != 0))})
-# idx <- order(col_ind, decreasing = T)[1:500]
-# 
-# sub_dat <- sub_dat[, idx]
-# 
-# dat_hclust <- hclust(dist(t(as.matrix(sub_dat))))
-# dat_index <- dat_hclust$order
-# 
-# sub_dat <- sub_dat[, dat_index]
-# sub_celltype <- cell_type[rand_ind]
-sub_cluster_labels <- as.numeric(as.factor(sub_celltype))
-
 dim(sub_dat)
 ```
 
+```{r}
+# first_filter <- apply(sub_dat, 2, function(x) {sd(x)})
+# first_filter_ind <- which(first_filter > 0)
+# sub_dat <- sub_dat[, first_filter_ind]
+# dim(sub_dat)
+```
 
 ## Apply SAVER
 
 ```{r}
 # saver_dat <- SAVER::saver(t(as.matrix(sub_dat)))
-
-saver_mat <- t(saver_dat$estimate)
+# saver_orig <- SAVER::saver(orig_count)
+# save(bm, saver_dat, cell_type, sub_dat, sub_celltype, store_date, file = "SAVER_seurat.Rdata")
 ```
 
 # 2-1. Dependency Measures
@@ -99,6 +82,7 @@ matrix_dat <- matrix(nrow = ncol(dat_mat), ncol = ncol(dat_mat))
     cor_mat <- stats::cor(dat_mat, method = basic_cor[i])
     cor_mat[upper.tri(cor_mat, diag = T)] <- NA
     cor_mat_list[[i]] <- cor_mat
+    save(cor_mat_list, file = "../temp_cor_data.Rdata")
   }
   
   # functions that take matrix or data.frame as input
@@ -113,6 +97,7 @@ matrix_dat <- matrix(nrow = ncol(dat_mat), ncol = ncol(dat_mat))
     }
     cor_mat[upper.tri(cor_mat, diag = T)] <- NA
     cor_mat_list[[i]] <- cor_mat
+    save(cor_mat_list, file = "../temp_cor_data.Rdata")
   }
   
   # functions that take two variables as input to calculate correlations.
@@ -139,12 +124,14 @@ matrix_dat <- matrix(nrow = ncol(dat_mat), ncol = ncol(dat_mat))
     
     cor_mat[upper.tri(cor_mat, diag = T)] <- NA
     cor_mat_list[[i]] <- cor_mat
+    save(cor_mat_list, file = "../temp_cor_data.Rdata")
   }
+  
   return(cor_mat_list)
 }
 
 draw_heatmap <- function(cor_mat){
-    len <- 6
+    len <- 5
     melted_cormat <- melt(cor_mat)
     melted_cormat <- melted_cormat[!is.na(melted_cormat$value),]
     break_vec <- round(as.numeric(quantile(melted_cormat$value,
@@ -183,8 +170,10 @@ make_cor_heatmap <- function(dat_mat, cor_mat_list){
   
   for (i in 1:8){
     print(i)
-    if (i == 5){
-      next
+    if ((i == 4) | (i == 5)) {
+      cor_heatmap_list[[i]] <- NULL
+      cor_abs_heatmap_list[[i]] <- NULL
+      next 
     }
     cor_mat <- abs(cor_mat_list[[i]])
     
@@ -224,17 +213,16 @@ make_cor_heatmap <- function(dat_mat, cor_mat_list){
 ```
 
 ```{r}
-load("SAVER_seurat_corr.RData")
-
-# save(cormat_list, heatmap_list, saver_mat, sub_celltype, store_date, file = "SAVER_seurat_corr.RData")
+# save(cormat_list, heatmap_list, saver_mat, store_date,
+#     file = "CD4_seurat_corr2.RData")
 
 # cormat_list <- make_cormat(saver_mat)
-# heatmap_list <- make_cor_heatmap(saver_mat, cormat_list)
+heatmap_list <- make_cor_heatmap(sub_dat, cor_mat_list)
 
-cor_pearson_mat <- cormat_list[[1]]; cor_spearman_mat <- cormat_list[[2]];
-cor_kendall_mat <- cormat_list[[3]]; cor_hoeffd_mat <- cormat_list[[4]];
-cor_blomqvist_mat <- cormat_list[[5]]; cor_MI_mat <- cormat_list[[6]];
-cor_dist_mat <- cormat_list[[7]]; cor_XI_mat <- cormat_list[[8]];
+cor_pearson_mat <- cor_mat_list[[1]]; cor_spearman_mat <- cor_mat_list[[2]];
+cor_kendall_mat <- cor_mat_list[[3]]; cor_hoeffd_mat <- cor_mat_list[[4]];
+cor_blomqvist_mat <- cor_mat_list[[5]]; cor_MI_mat <- cor_mat_list[[6]];
+cor_dist_mat <- cor_mat_list[[7]]; cor_XI_mat <- cor_mat_list[[8]];
 ```
 
 ## 1.	Pearson’s correlation coefficient
@@ -260,14 +248,19 @@ plot(cor_pearson_vec)
 
 ```{r}
 #plot the high correlations
+library(hexbin)
+library(RColorBrewer)
+
 par(mfrow = c(2,2))
 for(i in 1:4){
  idx <- which(abs(cor_pearson_mat) == cor_pearson_vec[i], arr.ind = T)
- idx1 <- idx[1]; idx2 <- idx[2]
+ idx1 <- idx[i,1]; idx2 <- idx[i,2]
  
- plot(saver_mat[,idx1], saver_mat[,idx2], col = sub_cluster_labels, asp = T,
-      pch = 16, xlab = paste0(colnames(saver_mat)[idx1], ", (", idx1, ")"),
-      ylab = paste0(colnames(saver_mat)[idx2], ", (", idx2, ")"), 
+ bin <- hexbin(sub_dat[,idx1], sub_dat[,idx2], xbins = 40)
+ my_colors=colorRampPalette(rev(brewer.pal(11, 'Spectral')))
+ plot(bin, colramp = my_colors, legend = F,
+      xlab = paste0(colnames(sub_dat)[idx1], ", (", idx1, ")"),
+      ylab = paste0(colnames(sub_dat)[idx2], ", (", idx2, ")"),
       main = paste0("Correlation of ", round(cor_pearson_mat[idx1, idx2], 3)))
 }
 ```
@@ -277,11 +270,13 @@ for(i in 1:4){
 par(mfrow = c(2,2))
 for(i in 1:4){
  idx <- which(abs(cor_pearson_mat) == rev(cor_pearson_vec)[i], arr.ind = T)
- idx1 <- idx[1]; idx2 <- idx[2]
+ idx1 <- idx[1,1]; idx2 <- idx[1,2]
  
- plot(saver_mat[,idx1], saver_mat[,idx2], col = sub_cluster_labels, asp = T,
-      pch = 16, xlab = paste0(colnames(saver_mat)[idx1], ", (", idx1, ")"),
-      ylab = paste0(colnames(saver_mat)[idx2], ", (", idx2, ")"), 
+ bin <- hexbin(sub_dat[,idx1], sub_dat[,idx2], xbins = 40)
+ my_colors=colorRampPalette(rev(brewer.pal(11, 'Spectral')))
+ plot(bin, colramp = my_colors, legend = F,
+      xlab = paste0(colnames(sub_dat)[idx1], ", (", idx1, ")"),
+      ylab = paste0(colnames(sub_dat)[idx2], ", (", idx2, ")"),
       main = paste0("Correlation of ", round(cor_pearson_mat[idx1, idx2], 3)))
 }
 ```
@@ -317,11 +312,13 @@ plot(cor_spearman_vec)
 par(mfrow = c(2,2))
 for(i in 1:4){
  idx <- which(abs(cor_spearman_mat) == cor_spearman_vec[i], arr.ind = T)
- idx1 <- idx[1]; idx2 <- idx[2]
+ idx1 <- idx[i,1]; idx2 <- idx[i,2]
  
- plot(saver_mat[,idx1], saver_mat[,idx2], col = sub_cluster_labels, asp = T,
-      pch = 16, xlab = paste0(colnames(saver_mat)[idx1], ", (", idx1, ")"),
-      ylab = paste0(colnames(saver_mat)[idx2], ", (", idx2, ")"), 
+ bin <- hexbin(sub_dat[,idx1], sub_dat[,idx2], xbins = 40)
+ my_colors=colorRampPalette(rev(brewer.pal(11, 'Spectral')))
+ plot(bin, colramp = my_colors, legend = F,
+      xlab = paste0(colnames(sub_dat)[idx1], ", (", idx1, ")"),
+      ylab = paste0(colnames(sub_dat)[idx2], ", (", idx2, ")"),
       main = paste0("Correlation of ", round(cor_spearman_mat[idx1, idx2], 3)))
 }
 ```
@@ -331,11 +328,13 @@ for(i in 1:4){
 par(mfrow = c(2,2))
 for(i in 1:4){
  idx <- which(abs(cor_spearman_mat) == rev(cor_spearman_vec)[i], arr.ind = T)
- idx1 <- idx[1]; idx2 <- idx[2]
+ idx1 <- idx[i,1]; idx2 <- idx[i,2]
  
- plot(saver_mat[,idx1], saver_mat[,idx2], col = sub_cluster_labels, asp = T,
-      pch = 16, xlab = paste0(colnames(saver_mat)[idx1], ", (", idx1, ")"),
-      ylab = paste0(colnames(saver_mat)[idx2], ", (", idx2, ")"), 
+ bin <- hexbin(sub_dat[,idx1], sub_dat[,idx2], xbins = 40)
+ my_colors=colorRampPalette(rev(brewer.pal(11, 'Spectral')))
+ plot(bin, colramp = my_colors, legend = F,
+      xlab = paste0(colnames(sub_dat)[idx1], ", (", idx1, ")"),
+      ylab = paste0(colnames(sub_dat)[idx2], ", (", idx2, ")"),
       main = paste0("Correlation of ", round(cor_spearman_mat[idx1, idx2], 3)))
 }
 ```
@@ -370,12 +369,14 @@ plot(cor_kendall_vec)
 #plot the high correlations
 par(mfrow = c(2,2))
 for(i in 1:4){
- idx <- which(abs(cor_kendall_mat) == cor_kendall_vec[i], arr.ind = T)
+ idx <- which(abs(cor_kendall_mat) == cor_kendall_vec[i], arr.ind = T)[i,]
  idx1 <- idx[1]; idx2 <- idx[2]
  
- plot(saver_mat[,idx1], saver_mat[,idx2], col = sub_cluster_labels, asp = T,
-      pch = 16, xlab = paste0(colnames(saver_mat)[idx1], ", (", idx1, ")"),
-      ylab = paste0(colnames(saver_mat)[idx2], ", (", idx2, ")"), 
+ bin <- hexbin(sub_dat[,idx1], sub_dat[,idx2], xbins = 40)
+ my_colors=colorRampPalette(rev(brewer.pal(11, 'Spectral')))
+ plot(bin, colramp = my_colors, legend = F,
+      xlab = paste0(colnames(sub_dat)[idx1], ", (", idx1, ")"),
+      ylab = paste0(colnames(sub_dat)[idx2], ", (", idx2, ")"),
       main = paste0("Correlation of ", round(cor_kendall_mat[idx1, idx2], 3)))
 }
 ```
@@ -384,12 +385,14 @@ for(i in 1:4){
 #plot the lowest correlations
 par(mfrow = c(2,2))
 for(i in 1:4){
- idx <- which(abs(cor_kendall_mat) == rev(cor_kendall_vec)[i], arr.ind = T)
+ idx <- which(abs(cor_kendall_mat) == rev(cor_kendall_vec)[i], arr.ind = T)[i,]
  idx1 <- idx[1]; idx2 <- idx[2]
  
- plot(saver_mat[,idx1], saver_mat[,idx2], col = sub_cluster_labels, asp = T,
-      pch = 16, xlab = paste0(colnames(saver_mat)[idx1], ", (", idx1, ")"),
-      ylab = paste0(colnames(saver_mat)[idx2], ", (", idx2, ")"), 
+ bin <- hexbin(sub_dat[,idx1], sub_dat[,idx2], xbins = 40)
+ my_colors=colorRampPalette(rev(brewer.pal(11, 'Spectral')))
+ plot(bin, colramp = my_colors, legend = F,
+      xlab = paste0(colnames(sub_dat)[idx1], ", (", idx1, ")"),
+      ylab = paste0(colnames(sub_dat)[idx2], ", (", idx2, ")"),
       main = paste0("Correlation of ", round(cor_kendall_mat[idx1, idx2], 3)))
 }
 ```
@@ -409,51 +412,55 @@ heatmap_list[[1]][[3]]
   - $D_2 = \sum_{i=1}^{n} (R_i-1)(R_i-2)(S_j-1)(S_j-2)$
   -	$D_3 = \sum_{i=1}^{n} (R_i-2)(S_i-2)Q_i$
 
-```{r}
-cor_hoeffd_mat[1:5,1:5]
+<!-- ```{r} -->
+<!-- cor_hoeffd_mat[1:5,1:5] -->
 
-quantile(cor_hoeffd_mat, na.rm = T)
-```
+<!-- quantile(cor_hoeffd_mat, na.rm = T) -->
+<!-- ``` -->
 
-```{r}
-# plot the smallest correlations
-cor_hoeffd_vec <- sort(abs(cor_hoeffd_mat), decreasing = T)
-plot(cor_hoeffd_vec)
-```
+<!-- ```{r} -->
+<!-- # plot the smallest correlations -->
+<!-- cor_hoeffd_vec <- sort(abs(cor_hoeffd_mat), decreasing = T) -->
+<!-- plot(cor_hoeffd_vec) -->
+<!-- ``` -->
 
-```{r}
-#plot the high correlations
-par(mfrow = c(2,2))
-for(i in 1:4){
- idx <- which(abs(cor_hoeffd_mat) == cor_hoeffd_vec[i], arr.ind = T)
- idx1 <- idx[1]; idx2 <- idx[2]
- 
- plot(saver_mat[,idx1], saver_mat[,idx2], col = sub_cluster_labels, asp = T,
-      pch = 16, xlab = paste0(colnames(saver_mat)[idx1], ", (", idx1, ")"),
-      ylab = paste0(colnames(saver_mat)[idx2], ", (", idx2, ")"), 
-      main = paste0("Correlation of ", round(cor_hoeffd_mat[idx1, idx2], 3)))
-}
-```
+<!-- ```{r} -->
+<!-- #plot the high correlations -->
+<!-- par(mfrow = c(2,2)) -->
+<!-- for(i in 1:4){ -->
+<!--  idx <- which(abs(cor_hoeffd_mat) == cor_hoeffd_vec[i], arr.ind = T) -->
+<!--  idx1 <- idx[1]; idx2 <- idx[2] -->
 
-```{r}
-#plot the lowest correlations
-par(mfrow = c(2,2))
-for(i in 1:4){
- idx <- which(abs(cor_hoeffd_mat) == rev(cor_hoeffd_vec)[i], arr.ind = T)
- idx1 <- idx[1]; idx2 <- idx[2]
- 
- plot(saver_mat[,idx1], saver_mat[,idx2], col = sub_cluster_labels, asp = T,
-      pch = 16, xlab = paste0(colnames(saver_mat)[idx1], ", (", idx1, ")"),
-      ylab = paste0(colnames(saver_mat)[idx2], ", (", idx2, ")"), 
-      main = paste0("Correlation of ", round(cor_hoeffd_mat[idx1, idx2], 3)))
-}
-```
+<!--  bin <- hexbin(sub_dat[,idx1], sub_dat[,idx2], xbins = 40) -->
+<!--  my_colors=colorRampPalette(rev(brewer.pal(11, 'Spectral'))) -->
+<!--  plot(bin, colramp = my_colors, legend = F, -->
+<!--       xlab = paste0(colnames(sub_dat)[idx1], ", (", idx1, ")"), -->
+<!--       ylab = paste0(colnames(sub_dat)[idx2], ", (", idx2, ")"), -->
+<!--       main = paste0("Correlation of ", round(cor_hoeffd_mat[idx1, idx2], 3))) -->
+<!-- } -->
+<!-- ``` -->
 
-### Heatmap
+<!-- ```{r} -->
+<!-- #plot the lowest correlations -->
+<!-- par(mfrow = c(2,2)) -->
+<!-- for(i in 1:4){ -->
+<!--  idx <- which(abs(cor_hoeffd_mat) == rev(cor_hoeffd_vec)[i], arr.ind = T) -->
+<!--  idx1 <- idx[1]; idx2 <- idx[2] -->
 
-```{r}
-heatmap_list[[1]][[4]]
-```
+<!--  bin <- hexbin(sub_dat[,idx1], sub_dat[,idx2], xbins = 40) -->
+<!--  my_colors=colorRampPalette(rev(brewer.pal(11, 'Spectral'))) -->
+<!--  plot(bin, colramp = my_colors, legend = F, -->
+<!--       xlab = paste0(colnames(sub_dat)[idx1], ", (", idx1, ")"), -->
+<!--       ylab = paste0(colnames(sub_dat)[idx2], ", (", idx2, ")"), -->
+<!--       main = paste0("Correlation of ", round(cor_hoeffd_mat[idx1, idx2], 3))) -->
+<!-- } -->
+<!-- ``` -->
+
+<!-- ### Heatmap -->
+
+<!-- ```{r} -->
+<!-- heatmap_list[[1]][[4]] -->
+<!-- ``` -->
 
 ## 5. Blomqvist's Beta
 
@@ -480,12 +487,14 @@ plot(cor_blomqvist_vec)
 #plot the high correlations
 par(mfrow = c(2,2))
 for(i in 1:4){
- idx <- which(unique(abs(cor_blomqvist_mat)) == unique(cor_blomqvist_vec)[i], arr.ind = T)
- idx1 <- idx[1,1]; idx2 <- idx[1,2]
+ idx <- which(abs(cor_blomqvist_mat) == cor_blomqvist_vec[i], arr.ind = T)[i,]
+ idx1 <- idx[1]; idx2 <- idx[2]
  
- plot(saver_mat[,idx1], saver_mat[,idx2], col = sub_cluster_labels, asp = T,
-      pch = 16, xlab = paste0(colnames(saver_mat)[idx1], ", (", idx1, ")"),
-      ylab = paste0(colnames(saver_mat)[idx2], ", (", idx2, ")"), 
+ bin <- hexbin(sub_dat[,idx1], sub_dat[,idx2], xbins = 40)
+ my_colors=colorRampPalette(rev(brewer.pal(11, 'Spectral')))
+ plot(bin, colramp = my_colors, legend = F,
+      xlab = paste0(colnames(sub_dat)[idx1], ", (", idx1, ")"),
+      ylab = paste0(colnames(sub_dat)[idx2], ", (", idx2, ")"),
       main = paste0("Correlation of ", round(cor_blomqvist_mat[idx1, idx2], 3)))
 }
 ```
@@ -497,9 +506,11 @@ for(i in 1:4){
  idx <- which(abs(cor_blomqvist_mat) == rev(cor_blomqvist_vec)[i], arr.ind = T)
  idx1 <- idx[1,1]; idx2 <- idx[1,2]
  
- plot(saver_mat[,idx1], saver_mat[,idx2], col = sub_cluster_labels, asp = T,
-      pch = 16, xlab = paste0(colnames(saver_mat)[idx1], ", (", idx1, ")"),
-      ylab = paste0(colnames(saver_mat)[idx2], ", (", idx2, ")"), 
+ bin <- hexbin(sub_dat[,idx1], sub_dat[,idx2], xbins = 40)
+ my_colors=colorRampPalette(rev(brewer.pal(11, 'Spectral')))
+ plot(bin, colramp = my_colors, legend = F,
+      xlab = paste0(colnames(sub_dat)[idx1], ", (", idx1, ")"),
+      ylab = paste0(colnames(sub_dat)[idx2], ", (", idx2, ")"),
       main = paste0("Correlation of ", round(cor_blomqvist_mat[idx1, idx2], 3)))
 }
 ```
@@ -509,7 +520,6 @@ for(i in 1:4){
 ```{r}
 heatmap_list[[1]][[5]]
 ```
-
 
 ## 6. Normalized Mutual Information
 
@@ -534,12 +544,14 @@ plot(cor_MI_vec)
 #plot the high correlations
 par(mfrow = c(2,2))
 for(i in 1:4){
- idx <- which(unique(abs(cor_MI_mat)) == unique(cor_MI_vec)[i], arr.ind = T)
- idx1 <- idx[1,1]; idx2 <- idx[1,2]
+ idx <- which(abs(cor_MI_mat) == cor_MI_vec[i], arr.ind = T)
+ idx1 <- idx[i,1]; idx2 <- idx[i,2]
  
- plot(saver_mat[,idx1], saver_mat[,idx2], col = sub_cluster_labels, asp = T,
-      pch = 16, xlab = paste0(colnames(saver_mat)[idx1], ", (", idx1, ")"),
-      ylab = paste0(colnames(saver_mat)[idx2], ", (", idx2, ")"), 
+ bin <- hexbin(sub_dat[,idx1], sub_dat[,idx2], xbins = 40)
+ my_colors=colorRampPalette(rev(brewer.pal(11, 'Spectral')))
+ plot(bin, colramp = my_colors, legend = F,
+      xlab = paste0(colnames(sub_dat)[idx1], ", (", idx1, ")"),
+      ylab = paste0(colnames(sub_dat)[idx2], ", (", idx2, ")"),
       main = paste0("Correlation of ", round(cor_MI_mat[idx1, idx2], 3)))
 }
 ```
@@ -549,11 +561,13 @@ for(i in 1:4){
 par(mfrow = c(2,2))
 for(i in 1:4){
  idx <- which(abs(cor_MI_mat) == rev(cor_MI_vec)[i], arr.ind = T)
- idx1 <- idx[1]; idx2 <- idx[2]
+ idx1 <- idx[1,1]; idx2 <- idx[1,2]
  
- plot(saver_mat[,idx1], saver_mat[,idx2], col = sub_cluster_labels, asp = T,
-      pch = 16, xlab = paste0(colnames(saver_mat)[idx1], ", (", idx1, ")"),
-      ylab = paste0(colnames(saver_mat)[idx2], ", (", idx2, ")"), 
+ bin <- hexbin(sub_dat[,idx1], sub_dat[,idx2], xbins = 40)
+ my_colors=colorRampPalette(rev(brewer.pal(11, 'Spectral')))
+ plot(bin, colramp = my_colors, legend = F,
+      xlab = paste0(colnames(sub_dat)[idx1], ", (", idx1, ")"),
+      ylab = paste0(colnames(sub_dat)[idx2], ", (", idx2, ")"),
       main = paste0("Correlation of ", round(cor_MI_mat[idx1, idx2], 3)))
 }
 ```
@@ -592,9 +606,11 @@ for(i in 1:4){
  idx <- which(abs(cor_dist_mat) == cor_dist_vec[i], arr.ind = T)
  idx1 <- idx[1]; idx2 <- idx[2]
  
- plot(saver_mat[,idx1], saver_mat[,idx2], col = sub_cluster_labels, asp = T,
-      pch = 16, xlab = paste0(colnames(saver_mat)[idx1], ", (", idx1, ")"),
-      ylab = paste0(colnames(saver_mat)[idx2], ", (", idx2, ")"), 
+ bin <- hexbin(sub_dat[,idx1], sub_dat[,idx2], xbins = 40)
+ my_colors=colorRampPalette(rev(brewer.pal(11, 'Spectral')))
+ plot(bin, colramp = my_colors, legend = F,
+      xlab = paste0(colnames(sub_dat)[idx1], ", (", idx1, ")"),
+      ylab = paste0(colnames(sub_dat)[idx2], ", (", idx2, ")"),
       main = paste0("Correlation of ", round(cor_dist_mat[idx1, idx2], 3)))
 }
 ```
@@ -604,11 +620,13 @@ for(i in 1:4){
 par(mfrow = c(2,2))
 for(i in 1:4){
  idx <- which(abs(cor_dist_mat) == rev(cor_dist_vec)[i], arr.ind = T)
- idx1 <- idx[1]; idx2 <- idx[2]
+ idx1 <- idx[i,1]; idx2 <- idx[i,2]
  
- plot(saver_mat[,idx1], saver_mat[,idx2], col = sub_cluster_labels, asp = T,
-      pch = 16, xlab = paste0(colnames(saver_mat)[idx1], ", (", idx1, ")"),
-      ylab = paste0(colnames(saver_mat)[idx2], ", (", idx2, ")"), 
+ bin <- hexbin(sub_dat[,idx1], sub_dat[,idx2], xbins = 40)
+ my_colors=colorRampPalette(rev(brewer.pal(11, 'Spectral')))
+ plot(bin, colramp = my_colors, legend = F,
+      xlab = paste0(colnames(sub_dat)[idx1], ", (", idx1, ")"),
+      ylab = paste0(colnames(sub_dat)[idx2], ", (", idx2, ")"),
       main = paste0("Correlation of ", round(cor_dist_mat[idx1, idx2], 3)))
 }
 ```
@@ -646,9 +664,11 @@ for(i in 1:4){
  idx <- which(abs(cor_XI_mat) == cor_XI_vec[i], arr.ind = T)
  idx1 <- idx[1]; idx2 <- idx[2]
  
- plot(saver_mat[,idx1], saver_mat[,idx2], col = sub_cluster_labels, asp = T,
-      pch = 16, xlab = paste0(colnames(saver_mat)[idx1], ", (", idx1, ")"),
-      ylab = paste0(colnames(saver_mat)[idx2], ", (", idx2, ")"), 
+ bin <- hexbin(sub_dat[,idx1], sub_dat[,idx2], xbins = 40)
+ my_colors=colorRampPalette(rev(brewer.pal(11, 'Spectral')))
+ plot(bin, colramp = my_colors, legend = F,
+      xlab = paste0(colnames(sub_dat)[idx1], ", (", idx1, ")"),
+      ylab = paste0(colnames(sub_dat)[idx2], ", (", idx2, ")"),
       main = paste0("Correlation of ", round(cor_XI_mat[idx1, idx2], 3)))
 }
 ```
@@ -660,9 +680,11 @@ for(i in 1:4){
  idx <- which(abs(cor_XI_mat) == rev(cor_XI_vec)[i], arr.ind = T)
  idx1 <- idx[1]; idx2 <- idx[2]
  
- plot(saver_mat[,idx1], saver_mat[,idx2], col = sub_cluster_labels, asp = T,
-      pch = 16, xlab = paste0(colnames(saver_mat)[idx1], ", (", idx1, ")"),
-      ylab = paste0(colnames(saver_mat)[idx2], ", (", idx2, ")"), 
+ bin <- hexbin(sub_dat[,idx1], sub_dat[,idx2], xbins = 40)
+ my_colors=colorRampPalette(rev(brewer.pal(11, 'Spectral')))
+ plot(bin, colramp = my_colors, legend = F,
+      xlab = paste0(colnames(sub_dat)[idx1], ", (", idx1, ")"),
+      ylab = paste0(colnames(sub_dat)[idx2], ", (", idx2, ")"),
       main = paste0("Correlation of ", round(cor_XI_mat[idx1, idx2], 3)))
 }
 ```
@@ -675,14 +697,18 @@ heatmap_list[[1]][[8]]
 
 ```{r}
 quantile_mat <- c()
-for (i in 1:length(cormat_list)){
+for (i in 1:length(cor_mat_list)){
+  if (i == 4) {
+    quantile_mat <- rbind(quantile_mat, c(NA, NA))
+    next
+    }
   quantile_mat <- rbind(quantile_mat,
-                        quantile(abs(cormat_list[[i]]), probs = c(0.10, 0.95), na.rm = T))
+                        quantile(abs(cor_mat_list[[i]]), probs = c(0.15, 0.85), na.rm = T))
 }
 rownames(quantile_mat) <- c("Pearson", "Spearman", "Kendall", "Hoeffding's D",
                             "Blomqvist's Beta","Dist. Corr", "NMI", "XI Corr")
 
 quantile_mat
-
-# save(quantile_mat, store_date, file = "SAVER_seurat_quantile.RData")
+store_date <- date()
+save(quantile_mat, store_date, file = "CD4_seurat_corrq.RData")
 ```
