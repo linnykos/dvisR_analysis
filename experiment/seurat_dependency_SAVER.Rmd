@@ -1,7 +1,7 @@
 ---
 title: "seurat_dependency (SAVER)"
 author: "Taewan Kim"  
-date: "3/18/2022"
+date: "4/8/2022"
 output:
     html_document:
     toc:  true
@@ -144,7 +144,7 @@ draw_heatmap <- function(cor_mat){
     heatmap_color <- unique(melted_cormat$value)
   
     heatmap <- ggplot(data = melted_cormat, aes(x = Var2, y = Var1, fill = value))+
-      geom_tile(colour = "Black") +
+      geom_tile() +
       ggplot2::scale_fill_manual(breaks = sort(heatmap_color), 
                                  values = rev(scales::viridis_pal(begin = 0, end = 1)
                                               (length(heatmap_color)))) +
@@ -156,6 +156,7 @@ draw_heatmap <- function(cor_mat){
     
     return (heatmap)
 }
+
 
 make_cor_heatmap <- function(dat_mat, cor_mat_list){
   fun_lable <- c("Pearson's Correlation", "Spearman's Correlation", "Kendall's Correlation",
@@ -213,15 +214,19 @@ make_cor_heatmap <- function(dat_mat, cor_mat_list){
 ```
 
 ```{r}
+store_date <- date()
 # save(cormat_list, heatmap_list, saver_mat, store_date,
-#     file = "CD4_seurat_corr2.RData")
+#     file ="seurat_corr_saver.RData")
 
 # cormat_list <- make_cormat(saver_mat)
+
+load("SAVER_beta_mat.rds")
+
 heatmap_list <- make_cor_heatmap(sub_dat, cor_mat_list)
 
 cor_pearson_mat <- cor_mat_list[[1]]; cor_spearman_mat <- cor_mat_list[[2]];
 cor_kendall_mat <- cor_mat_list[[3]]; cor_hoeffd_mat <- cor_mat_list[[4]];
-cor_blomqvist_mat <- cor_mat_list[[5]]; cor_MI_mat <- cor_mat_list[[6]];
+cor_blomqvist_mat <- beta_mat; cor_MI_mat <- cor_mat_list[[6]];
 cor_dist_mat <- cor_mat_list[[7]]; cor_XI_mat <- cor_mat_list[[8]];
 ```
 
@@ -233,6 +238,7 @@ cor_dist_mat <- cor_mat_list[[7]]; cor_XI_mat <- cor_mat_list[[8]];
 
 
 ```{r}
+set.seed(10)
 cor_pearson_mat[1:5,1:5]
 
 quantile(cor_pearson_mat, na.rm = T)
@@ -250,15 +256,19 @@ plot(cor_pearson_vec)
 #plot the high correlations
 library(hexbin)
 library(RColorBrewer)
+high_ind <- quantile(cor_pearson_vec, probs = c(0.9), na.rm = T)
+high_ind <- cor_pearson_vec[cor_pearson_vec>high_ind]
+# alterantive method
+# which.min(abs(cor_mat) - quantile(cor_mat, probs = 0.9))
 
 par(mfrow = c(2,2))
 for(i in 1:4){
- idx <- which(abs(cor_pearson_mat) == cor_pearson_vec[i], arr.ind = T)
- idx1 <- idx[i,1]; idx2 <- idx[i,2]
+ idx <- which(abs(cor_pearson_mat) == sample(high_ind, 1), arr.ind = T)
+ idx1 <- idx[1,1]; idx2 <- idx[1,2]
  
  bin <- hexbin(sub_dat[,idx1], sub_dat[,idx2], xbins = 40)
  my_colors=colorRampPalette(rev(brewer.pal(11, 'Spectral')))
- plot(bin, colramp = my_colors, legend = F,
+ plot(bin, colramp = my_colors,
       xlab = paste0(colnames(sub_dat)[idx1], ", (", idx1, ")"),
       ylab = paste0(colnames(sub_dat)[idx2], ", (", idx2, ")"),
       main = paste0("Correlation of ", round(cor_pearson_mat[idx1, idx2], 3)))
@@ -267,9 +277,12 @@ for(i in 1:4){
 
 ```{r}
 #plot the lowest correlations
+low_ind <- quantile(cor_pearson_vec, probs = c(0.1), na.rm = T)
+low_ind <- cor_pearson_vec[cor_pearson_vec<=low_ind]
+
 par(mfrow = c(2,2))
 for(i in 1:4){
- idx <- which(abs(cor_pearson_mat) == rev(cor_pearson_vec)[i], arr.ind = T)
+ idx <- which(abs(cor_pearson_mat) == sample(low_ind, 1), arr.ind = T)
  idx1 <- idx[1,1]; idx2 <- idx[1,2]
  
  bin <- hexbin(sub_dat[,idx1], sub_dat[,idx2], xbins = 40)
@@ -309,10 +322,13 @@ plot(cor_spearman_vec)
 
 ```{r}
 #plot the high correlations
+high_ind <- quantile(cor_spearman_vec, probs = c(0.9), na.rm = T)
+high_ind <- cor_spearman_vec[cor_spearman_vec>high_ind]
+
 par(mfrow = c(2,2))
 for(i in 1:4){
- idx <- which(abs(cor_spearman_mat) == cor_spearman_vec[i], arr.ind = T)
- idx1 <- idx[i,1]; idx2 <- idx[i,2]
+ idx <- which(abs(cor_spearman_mat) == sample(high_ind, 1), arr.ind = T)
+ idx1 <- idx[1,1]; idx2 <- idx[1,2]
  
  bin <- hexbin(sub_dat[,idx1], sub_dat[,idx2], xbins = 40)
  my_colors=colorRampPalette(rev(brewer.pal(11, 'Spectral')))
@@ -325,10 +341,13 @@ for(i in 1:4){
 
 ```{r}
 #plot the lowest correlations
+low_ind <- quantile(cor_spearman_vec, probs = c(0.1), na.rm = T)
+low_ind <- cor_spearman_vec[cor_spearman_vec<=low_ind]
+
 par(mfrow = c(2,2))
 for(i in 1:4){
- idx <- which(abs(cor_spearman_mat) == rev(cor_spearman_vec)[i], arr.ind = T)
- idx1 <- idx[i,1]; idx2 <- idx[i,2]
+ idx <- which(abs(cor_spearman_mat) == sample(low_ind, 1), arr.ind = T)
+ idx1 <- idx[1,1]; idx2 <- idx[1,2]
  
  bin <- hexbin(sub_dat[,idx1], sub_dat[,idx2], xbins = 40)
  my_colors=colorRampPalette(rev(brewer.pal(11, 'Spectral')))
@@ -367,9 +386,12 @@ plot(cor_kendall_vec)
 
 ```{r}
 #plot the high correlations
+high_ind <- quantile(cor_kendall_vec, probs = c(0.9), na.rm = T)
+high_ind <- cor_kendall_vec[cor_kendall_vec>high_ind]
+
 par(mfrow = c(2,2))
 for(i in 1:4){
- idx <- which(abs(cor_kendall_mat) == cor_kendall_vec[i], arr.ind = T)[i,]
+ idx <- which(abs(cor_kendall_mat) == sample(high_ind, 1), arr.ind = T)
  idx1 <- idx[1]; idx2 <- idx[2]
  
  bin <- hexbin(sub_dat[,idx1], sub_dat[,idx2], xbins = 40)
@@ -383,9 +405,12 @@ for(i in 1:4){
 
 ```{r}
 #plot the lowest correlations
+low_ind <- quantile(cor_kendall_vec, probs = c(0.1), na.rm = T)
+low_ind <- cor_kendall_vec[cor_kendall_vec<=low_ind]
+
 par(mfrow = c(2,2))
 for(i in 1:4){
- idx <- which(abs(cor_kendall_mat) == rev(cor_kendall_vec)[i], arr.ind = T)[i,]
+ idx <- which(abs(cor_kendall_mat) == sample(low_ind, 1), arr.ind = T)
  idx1 <- idx[1]; idx2 <- idx[2]
  
  bin <- hexbin(sub_dat[,idx1], sub_dat[,idx2], xbins = 40)
@@ -485,10 +510,13 @@ plot(cor_blomqvist_vec)
 
 ```{r}
 #plot the high correlations
+high_ind <- quantile(cor_blomqvist_vec, probs = c(0.9), na.rm = T)
+high_ind <- cor_blomqvist_vec[cor_blomqvist_vec>=high_ind]
+
 par(mfrow = c(2,2))
 for(i in 1:4){
- idx <- which(abs(cor_blomqvist_mat) == cor_blomqvist_vec[i], arr.ind = T)[i,]
- idx1 <- idx[1]; idx2 <- idx[2]
+ idx <- which(abs(cor_blomqvist_mat) == sample(high_ind, 1), arr.ind = T)
+ idx1 <- idx[1,1]; idx2 <- idx[1,2]
  
  bin <- hexbin(sub_dat[,idx1], sub_dat[,idx2], xbins = 40)
  my_colors=colorRampPalette(rev(brewer.pal(11, 'Spectral')))
@@ -501,9 +529,12 @@ for(i in 1:4){
 
 ```{r}
 #plot the lowest correlations
+low_ind <- quantile(cor_blomqvist_vec, probs = c(0.1), na.rm = T)
+low_ind <- cor_blomqvist_vec[cor_blomqvist_vec<=low_ind]
+
 par(mfrow = c(2,2))
 for(i in 1:4){
- idx <- which(abs(cor_blomqvist_mat) == rev(cor_blomqvist_vec)[i], arr.ind = T)
+ idx <- which(abs(cor_blomqvist_mat) == sample(low_ind, 1), arr.ind = T)
  idx1 <- idx[1,1]; idx2 <- idx[1,2]
  
  bin <- hexbin(sub_dat[,idx1], sub_dat[,idx2], xbins = 40)
@@ -542,10 +573,13 @@ plot(cor_MI_vec)
 
 ```{r}
 #plot the high correlations
+high_ind <- quantile(cor_MI_vec, probs = c(0.9), na.rm = T)
+high_ind <- cor_MI_vec[cor_MI_vec>high_ind]
+
 par(mfrow = c(2,2))
 for(i in 1:4){
- idx <- which(abs(cor_MI_mat) == cor_MI_vec[i], arr.ind = T)
- idx1 <- idx[i,1]; idx2 <- idx[i,2]
+ idx <- which(abs(cor_MI_mat) == sample(high_ind, 1), arr.ind = T)
+ idx1 <- idx[1,1]; idx2 <- idx[1,2]
  
  bin <- hexbin(sub_dat[,idx1], sub_dat[,idx2], xbins = 40)
  my_colors=colorRampPalette(rev(brewer.pal(11, 'Spectral')))
@@ -558,9 +592,12 @@ for(i in 1:4){
 
 ```{r}
 #plot the lowest correlations
+low_ind <- quantile(cor_MI_vec, probs = c(0.1), na.rm = T)
+low_ind <- cor_MI_vec[cor_MI_vec<=low_ind]
+
 par(mfrow = c(2,2))
 for(i in 1:4){
- idx <- which(abs(cor_MI_mat) == rev(cor_MI_vec)[i], arr.ind = T)
+ idx <- which(abs(cor_MI_mat) == sample(low_ind, 1), arr.ind = T)
  idx1 <- idx[1,1]; idx2 <- idx[1,2]
  
  bin <- hexbin(sub_dat[,idx1], sub_dat[,idx2], xbins = 40)
@@ -601,9 +638,12 @@ plot(cor_dist_vec)
 
 ```{r}
 #plot the high correlations
+high_ind <- quantile(cor_dist_vec, probs = c(0.9), na.rm = T)
+high_ind <- cor_dist_vec[cor_dist_vec>high_ind]
+
 par(mfrow = c(2,2))
 for(i in 1:4){
- idx <- which(abs(cor_dist_mat) == cor_dist_vec[i], arr.ind = T)
+ idx <- which(abs(cor_dist_mat) == sample(high_ind, 1), arr.ind = T)
  idx1 <- idx[1]; idx2 <- idx[2]
  
  bin <- hexbin(sub_dat[,idx1], sub_dat[,idx2], xbins = 40)
@@ -617,10 +657,13 @@ for(i in 1:4){
 
 ```{r}
 #plot the lowest correlations
+low_ind <- quantile(cor_dist_vec, probs = c(0.1), na.rm = T)
+low_ind <- cor_dist_vec[cor_dist_vec<=low_ind]
+
 par(mfrow = c(2,2))
 for(i in 1:4){
- idx <- which(abs(cor_dist_mat) == rev(cor_dist_vec)[i], arr.ind = T)
- idx1 <- idx[i,1]; idx2 <- idx[i,2]
+ idx <- which(abs(cor_dist_mat) == sample(low_ind, 1), arr.ind = T)
+ idx1 <- idx[1,1]; idx2 <- idx[1,2]
  
  bin <- hexbin(sub_dat[,idx1], sub_dat[,idx2], xbins = 40)
  my_colors=colorRampPalette(rev(brewer.pal(11, 'Spectral')))
@@ -659,9 +702,12 @@ plot(cor_XI_vec)
 
 ```{r}
 #plot the high correlations
+high_ind <- quantile(cor_XI_vec, probs = c(0.9), na.rm = T)
+high_ind <- cor_XI_vec[cor_XI_vec>high_ind]
+
 par(mfrow = c(2,2))
 for(i in 1:4){
- idx <- which(abs(cor_XI_mat) == cor_XI_vec[i], arr.ind = T)
+ idx <- which(abs(cor_XI_mat) == sample(high_ind, 1), arr.ind = T)
  idx1 <- idx[1]; idx2 <- idx[2]
  
  bin <- hexbin(sub_dat[,idx1], sub_dat[,idx2], xbins = 40)
@@ -675,9 +721,12 @@ for(i in 1:4){
 
 ```{r}
 #plot the lowest correlations
+low_ind <- quantile(cor_XI_vec, probs = c(0.1), na.rm = T)
+low_ind <- cor_XI_vec[cor_XI_vec<=low_ind]
+
 par(mfrow = c(2,2))
 for(i in 1:4){
- idx <- which(abs(cor_XI_mat) == rev(cor_XI_vec)[i], arr.ind = T)
+ idx <- which(abs(cor_XI_mat) == sample(low_ind, 1), arr.ind = T)
  idx1 <- idx[1]; idx2 <- idx[2]
  
  bin <- hexbin(sub_dat[,idx1], sub_dat[,idx2], xbins = 40)
@@ -709,6 +758,5 @@ rownames(quantile_mat) <- c("Pearson", "Spearman", "Kendall", "Hoeffding's D",
                             "Blomqvist's Beta","Dist. Corr", "NMI", "XI Corr")
 
 quantile_mat
-store_date <- date()
-save(quantile_mat, store_date, file = "CD4_seurat_corrq.RData")
+# save(quantile_mat, store_date, file = "CD4_seurat_corrq.RData")
 ```
