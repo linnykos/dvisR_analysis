@@ -166,7 +166,7 @@ pre code {
 
 <h1 class="title toc-ignore">seurat_pattern (SAVER)</h1>
 <h4 class="author">Taewan Kim</h4>
-<h4 class="date">3/18/2022</h4>
+<h4 class="date">5/30/2022</h4>
 
 </div>
 
@@ -1058,10 +1058,27 @@ plot_density &lt;- function(mat, grid_spacing,
 
   invisible()
 }</code></pre>
+<pre class="r"><code># par(mfrow = c(1, 2))
+# for (i in 1:nrow(dense_ind)){
+#   index1 &lt;- dense_ind[i, 1]; index2 &lt;- dense_ind[i, 2];
+#   plot(sub_dat[,index1], sub_dat[,index2], asp = T,
+#        pch = 16, xlab = paste0(colnames(sub_dat)[index1], &quot;, (&quot;, index1, &quot;)&quot;),
+#        ylab = paste0(colnames(sub_dat)[index2], &quot;, (&quot;, index2, &quot;)&quot;),
+#        main = dense_title[i])
+#   xylim &lt;- par(&quot;usr&quot;)
+# 
+#   x &lt;- sub_dat[,index1]; y &lt;- sub_dat[,index2];
+#   xmin &lt;- min(x); xmax &lt;- max(x); ymin &lt;- min(y); ymax &lt;- max(y);
+#   total_min &lt;- min(xmin, ymin); total_max &lt;- max(xmax, ymax);
+# 
+#   plot_density(cbind(x, y),
+#                grid_spacing = seq(total_min, total_max, by=((total_max - total_min) / 10)),
+#                xlim = c(xylim[1], xylim[2]), ylim = c(xylim[3], xylim[4]),
+#                xlab = paste0(colnames(sub_dat)[index1], &quot;, (&quot;, index1, &quot;)&quot;),
+#                ylab = paste0(colnames(sub_dat)[index2], &quot;, (&quot;, index2, &quot;)&quot;))
+# 
+# }</code></pre>
 </div>
-</div>
-<div id="r-parmfrow-c1-2-for-i-in-1nrowdense_ind-index1---dense_indi-1-index2---dense_indi-2-plotsub_datindex1-sub_datindex2-asp-t-pch-16-xlab-paste0colnamessub_datindex1-index1-ylab-paste0colnamessub_datindex2-index2-main-dense_titlei-xylim---parusr-x---sub_datindex1-y---sub_datindex2-xmin---minx-xmax---maxx-ymin---miny-ymax---maxy-total_min---minxmin-ymin-total_max---maxxmax-ymax-plot_densitycbindx-y-grid_spacing-seqtotal_min-total_max-bytotal_max---total_min-10-xlim-cxylim1-xylim2-ylim-cxylim3-xylim4-xlab-paste0colnamessub_datindex1-index1-ylab-paste0colnamessub_datindex2-index2" class="section level1">
-<h1><code>{r} # par(mfrow = c(1, 2)) # for (i in 1:nrow(dense_ind)){ #   index1 &lt;- dense_ind[i, 1]; index2 &lt;- dense_ind[i, 2]; #   plot(sub_dat[,index1], sub_dat[,index2], asp = T, #        pch = 16, xlab = paste0(colnames(sub_dat)[index1], &quot;, (&quot;, index1, &quot;)&quot;), #        ylab = paste0(colnames(sub_dat)[index2], &quot;, (&quot;, index2, &quot;)&quot;), #        main = dense_title[i]) #   xylim &lt;- par(&quot;usr&quot;) #  #   x &lt;- sub_dat[,index1]; y &lt;- sub_dat[,index2]; #   xmin &lt;- min(x); xmax &lt;- max(x); ymin &lt;- min(y); ymax &lt;- max(y); #   total_min &lt;- min(xmin, ymin); total_max &lt;- max(xmax, ymax); #  #   plot_density(cbind(x, y), #                grid_spacing = seq(total_min, total_max, by=((total_max - total_min) / 10)), #                xlim = c(xylim[1], xylim[2]), ylim = c(xylim[3], xylim[4]), #                xlab = paste0(colnames(sub_dat)[index1], &quot;, (&quot;, index1, &quot;)&quot;), #                ylab = paste0(colnames(sub_dat)[index2], &quot;, (&quot;, index2, &quot;)&quot;)) #  # } #</code></h1>
 <div id="visualize-with-hexbin" class="section level2">
 <h2>3-3 Visualize with HexBin</h2>
 <pre class="r"><code>library(hexbin)

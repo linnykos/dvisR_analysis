@@ -1,7 +1,7 @@
 ---
 title: "seurat_pattern (SAVER)"
 author: "Taewan Kim"
-date: "4/8/2022"
+date: "5/30/2022"
 output:
     html_document:
     toc:  true
@@ -959,7 +959,7 @@ plot_density <- function(mat, grid_spacing,
 ```
 
   
-# ```{r}
+```{r}
 # par(mfrow = c(1, 2))
 # for (i in 1:nrow(dense_ind)){
 #   index1 <- dense_ind[i, 1]; index2 <- dense_ind[i, 2];
@@ -980,7 +980,7 @@ plot_density <- function(mat, grid_spacing,
 #                ylab = paste0(colnames(sub_dat)[index2], ", (", index2, ")"))
 # 
 # }
-# ```
+```
 
 ## 3-3 Visualize with HexBin
 

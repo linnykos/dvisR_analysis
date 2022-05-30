@@ -1,7 +1,7 @@
 ---
 title: "seurat_dependency (SAVER)"
 author: "Taewan Kim"  
-date: "4/8/2022"
+date: "5/30/2022"
 output:
     html_document:
     toc:  true
@@ -411,7 +411,7 @@ low_ind <- cor_kendall_vec[cor_kendall_vec<=low_ind]
 par(mfrow = c(2,2))
 for(i in 1:4){
  idx <- which(abs(cor_kendall_mat) == sample(low_ind, 1), arr.ind = T)
- idx1 <- idx[1]; idx2 <- idx[2]
+ idx1 <- idx[1,1]; idx2 <- idx[1,2]
  
  bin <- hexbin(sub_dat[,idx1], sub_dat[,idx2], xbins = 40)
  my_colors=colorRampPalette(rev(brewer.pal(11, 'Spectral')))
@@ -758,5 +758,5 @@ rownames(quantile_mat) <- c("Pearson", "Spearman", "Kendall", "Hoeffding's D",
                             "Blomqvist's Beta","Dist. Corr", "NMI", "XI Corr")
 
 quantile_mat
-# save(quantile_mat, store_date, file = "CD4_seurat_corrq.RData")
+save(quantile_mat, store_date, file = "CD4_seurat_corrq.RData")
 ```
