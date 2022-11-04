@@ -1,0 +1,498 @@
+---
+title: "CD4_CD8_Compare"
+author: "Taewan Kim"
+date: "2022-11-01"
+output: html_document
+---
+
+```{r, warning=FALSE}
+library(Seurat)
+library(SeuratData)
+library(cowplot)
+library(dplyr)
+library(SAVER)
+library(hexbin)
+library(RColorBrewer)
+```
+
+```{r}
+load("CD4_CD8_dat.rds")
+load("CD4_compare_corr.rds")
+load("CD8_compare_corr.rds")
+
+gene_names <- rownames(CD4_compare[[1]])
+```
+
+```{r}
+hex_vis <- function(sub_dat1, sub_dat2, idx1, idx2, title){
+  bin1 <- hexbin(sub_dat1[, idx1], sub_dat1[, idx2], xbins = 20)
+  bin2 <- hexbin(sub_dat2[, idx1], sub_dat2[, idx2], xbins = 20)
+  my_colors <- colorRampPalette(rev(brewer.pal(11,'Spectral')))
+  
+  plot(bin1, colramp = my_colors,
+       xlab = paste0(gene_names[idx1],
+                     ", (", idx1, ")"),
+       ylab = paste0(gene_names[idx2],
+                     ", (", idx2, ")"),
+       main = title[1])
+  plot(bin2, colramp = my_colors,
+       xlab = paste0(gene_names[idx1],
+                     ", (", idx1, ")"),
+       ylab = paste0(gene_names[idx2],
+                     ", (", idx2, ")"),
+       main = title[2])
+}
+```
+
+
+# 1. Pearson Correlation
+
+- Pearson's correlation is to measure linear dependency of data, X and Y
+- $-1 \leq \rho_{Pearson}(X, Y) \leq 1$
+- $\rho_{Pearson}(X, Y) = \frac{\sum(x_i-\bar{x})(y_i -\bar{y})}{\sum(x_i-\bar{x})^2(y_i -\bar{y})^2}$
+
+```{r}
+CD4_pear <- CD4_compare[[1]]; CD8_pear <- CD8_compare[[1]]
+
+CD4_pear_quan <- quantile(abs(CD4_pear),
+                          probs = c(0.05, 0.95),
+                          na.rm = TRUE)
+
+CD8_pear_quan <- quantile(abs(CD8_pear),
+                          probs = c(0.05, 0.95),
+                          na.rm = TRUE)
+```
+
+## Low CD4 & High CD8
+
+```{r}
+cor_contrast1 <- (CD4_pear < CD4_pear_quan[[1]]) & (CD8_pear > CD8_pear_quan[[2]])
+
+cor_contrast_ind1 <- which(cor_contrast1, arr.ind = T)
+```
+
+```{r}
+nrow(cor_contrast_ind1)
+```
+
+```{r}
+random_ind1 <- sample(nrow(cor_contrast_ind1), 5)
+for (i in random_ind1){
+  idx1 <- cor_contrast_ind1[i, 1]; idx2 <- cor_contrast_ind1[i, 2]
+  title <- c(paste0("Pearson (CD4) of ", round(CD4_pear[idx1, idx2], 3)),
+             paste0("Pearson (CD8) of ", round(CD8_pear[idx1, idx2], 3)))
+  hex_vis(CD4_subdat, CD8_subdat, idx1, idx2, title)
+}
+```
+
+
+## High CD4 & Low CD8
+
+```{r}
+cor_contrast2 <- (CD4_pear > CD4_pear_quan[[2]]) & (CD8_pear < CD8_pear_quan[[1]])
+
+cor_contrast_ind2 <- which(cor_contrast2, arr.ind = T)
+```
+
+```{r}
+nrow(cor_contrast_ind2)
+```
+
+```{r}
+random_ind2 <- sample(nrow(cor_contrast_ind2), 5)
+
+for (i in random_ind2){
+  idx1 <- cor_contrast_ind2[i, 1]; idx2 <- cor_contrast_ind2[i, 2]
+  title <- c(paste0("Pearson (CD4) of ", round(CD4_pear[idx1, idx2], 3)),
+             paste0("Pearson (CD8) of ", round(CD8_pear[idx1, idx2], 3)))
+  hex_vis(CD4_subdat, CD8_subdat, idx1, idx2, title)
+}
+```
+
+# 2. Spearman Correlation
+
+- It captures the monotonic relationship between data, X and Y
+- $-1 \leq \rho_{Spearman}(X,Y) \leq 1$
+- $\rho_{Spearman} = 1 - \frac{6\sum{d_i^2}}{n(n^2-1)}$ where $d_i$ is the difference between the ranks of $x_i$ and $y_i$
+
+```{r}
+CD4_spear <- CD4_compare[[2]]; CD8_spear <- CD8_compare[[2]]
+
+CD4_spear_quan <- quantile(abs(CD4_spear),
+                           probs = c(0.10, 0.90),
+                           na.rm = TRUE)
+
+CD8_spear_quan <- quantile(abs(CD8_spear),
+                           probs = c(0.10, 0.90),
+                           na.rm = TRUE)
+```
+
+## Low CD4 & High CD8
+
+```{r}
+cor_contrast3 <- (CD4_spear < CD4_spear_quan[[1]]) & (CD8_spear > CD8_spear_quan[[2]])
+
+cor_contrast_ind3 <- which(cor_contrast3, arr.ind = T)
+```
+
+```{r}
+nrow(cor_contrast_ind3)
+```
+
+```{r}
+random_ind3 <- sample(nrow(cor_contrast_ind3), 5)
+for (i in random_ind3){
+  idx1 <- cor_contrast_ind3[i, 1]; idx2 <- cor_contrast_ind3[i, 2]
+  title <- c(paste0("Spearman (CD4) of ", round(CD4_spear[idx1, idx2], 3)),
+             paste0("Spearman (CD8) of ", round(CD8_spear[idx1, idx2], 3)))
+  hex_vis(CD4_subdat, CD8_subdat, idx1, idx2, title)
+}
+```
+
+## High CD4 & Low CD8
+
+```{r}
+cor_contrast4 <- (CD4_spear > CD4_spear_quan[[2]]) & (CD8_spear < CD8_spear_quan[[1]])
+
+cor_contrast_ind4 <- which(cor_contrast4, arr.ind = T)
+```
+
+```{r}
+nrow(cor_contrast_ind4)
+```
+
+```{r}
+random_ind4 <- sample(nrow(cor_contrast_ind4), 5)
+
+for (i in random_ind4){
+  idx1 <- cor_contrast_ind4[i, 1]; idx2 <- cor_contrast_ind4[i, 2]
+  title <- c(paste0("Spearman (CD4) of ", round(CD4_spear[idx1, idx2], 3)),
+             paste0("Spearman (CD8) of ", round(CD8_spear[idx1, idx2], 3)))
+  hex_vis(CD4_subdat, CD8_subdat, idx1, idx2, title)
+}
+```
+
+# 3. Kendall's Tau
+
+- It is an alternative method to Spearman’s correlations, identifying monotonic relationships.
+- $-1 \leq \rho_{Kendall}(X,Y) \leq 1$
+- $\rho_{Kendall}(X,Y) = \frac{\#\;concordant\;pairs - \#\;discordant \;pairs}{0.5n(n-1)}$
+
+```{r}
+CD4_kendall <- CD4_compare[[3]]; CD8_kendall <- CD8_compare[[3]]
+
+CD4_kendall_quan <- quantile(abs(CD4_kendall),
+                             probs = c(0.10, 0.90),
+                             na.rm = TRUE)
+
+CD8_kendall_quan <- quantile(abs(CD8_kendall),
+                             probs = c(0.10, 0.90),
+                             na.rm = TRUE)
+```
+
+## Low CD4 & High CD8
+
+```{r}
+cor_contrast5 <- (CD4_kendall < CD4_kendall_quan[[1]]) & (CD8_kendall > CD8_kendall_quan[[2]])
+
+cor_contrast_ind5 <- which(cor_contrast5, arr.ind = T)
+```
+
+```{r}
+nrow(cor_contrast_ind5)
+```
+
+```{r}
+random_ind5 <- sample(nrow(cor_contrast_ind5), 5)
+for (i in random_ind5){
+  idx1 <- cor_contrast_ind5[i, 1]; idx2 <- cor_contrast_ind5[i, 2]
+  title <- c(paste0("Kendall (CD4) of ", round(CD4_kendall[idx1, idx2], 3)),
+             paste0("Kendall (CD8) of ", round(CD8_kendall[idx1, idx2], 3)))
+  hex_vis(CD4_subdat, CD8_subdat, idx1, idx2, title)
+}
+```
+
+## High CD4 & Low CD8
+
+```{r}
+cor_contrast6 <- (CD4_kendall > CD4_kendall_quan[[2]]) & (CD8_kendall < CD8_kendall_quan[[1]])
+
+cor_contrast_ind6 <- which(cor_contrast6, arr.ind = T)
+```
+
+```{r}
+nrow(cor_contrast_ind6)
+```
+
+```{r}
+random_ind6 <- sample(nrow(cor_contrast_ind6), 5)
+
+for (i in random_ind6){
+  idx1 <- cor_contrast_ind6[i, 1]; idx2 <- cor_contrast_ind6[i, 2]
+  title <- c(paste0("Kendall (CD4) of ", round(CD4_kendall[idx1, idx2], 3)),
+             paste0("Kendall (CD8) of ", round(CD8_kendall[idx1, idx2], 3)))
+  hex_vis(CD4_subdat, CD8_subdat, idx1, idx2, title)
+}
+```
+
+<!-- # 5. Blomqvist's Beta -->
+
+<!-- - It measures dependency between variables by constructing a two-way contingency table with the medians of each margin as cutting points. -->
+<!-- - $0 \leq \beta \leq 1$ -->
+<!-- - $\beta_n = \frac{n_1-n_2}{n_1+n_2} = \frac{2n_1}{n_1+n_2} - 1$ -->
+<!-- - $\beta = P\{(X-\tilde{x})(Y-\tilde{y})>0\} - P\{(X-\tilde{x})(Y-\tilde{y}) < 0\}$ -->
+
+<!-- ```{r} -->
+<!-- CD4_beta <- CD4_compare[[5]]; CD8_beta <- CD8_compare[[5]] -->
+
+<!-- CD4_beta_quan <- quantile(abs(CD4_beta), -->
+<!--                           probs = c(0.05, 0.95), -->
+<!--                           na.rm = TRUE) -->
+
+<!-- CD8_beta_quan <- quantile(abs(CD8_beta), -->
+<!--                           probs = c(0.05, 0.95), -->
+<!--                           na.rm = TRUE) -->
+<!-- ``` -->
+
+<!-- ## Low CD4 & High CD8 -->
+
+<!-- ```{r} -->
+<!-- cor_contrast7 <- (CD4_beta < CD4_beta_quan[[1]]) & (CD8_beta > CD8_beta_quan[[2]]) -->
+
+<!-- cor_contrast_ind7 <- which(cor_contrast7, arr.ind = T) -->
+<!-- ``` -->
+
+<!-- ```{r} -->
+<!-- nrow(cor_contrast_ind7) -->
+<!-- ``` -->
+
+<!-- ```{r} -->
+<!-- random_ind7 <- sample(nrow(cor_contrast_ind7), 5) -->
+<!-- for (i in random_ind7){ -->
+<!--   idx1 <- cor_contrast_ind7[i, 1]; idx2 <- cor_contrast_ind7[i, 2] -->
+<!--   title <- c(paste0("Beta (CD4) of ", round(CD4_beta[idx1, idx2], 3)), -->
+<!--              paste0("Beta (CD8) of ", round(CD8_beta[idx1, idx2], 3))) -->
+<!--   hex_vis(CD4_subdat, CD8_subdat, idx1, idx2, title) -->
+<!-- } -->
+<!-- ``` -->
+
+<!-- ## High CD4 & Low CD8 -->
+
+<!-- ```{r} -->
+<!-- cor_contrast8 <- (CD4_beta < CD4_beta_quan[[2]]) & (CD8_beta < CD8_beta_quan[[1]]) -->
+
+<!-- cor_contrast_ind8 <- which(cor_contrast8, arr.ind = T) -->
+<!-- ``` -->
+
+<!-- ```{r} -->
+<!-- nrow(cor_contrast_ind8) -->
+<!-- ``` -->
+
+<!-- ```{r} -->
+<!-- random_ind8 <- sample(nrow(cor_contrast_ind8), 5) -->
+
+<!-- for (i in random_ind8){ -->
+<!--   idx1 <- cor_contrast_ind8[i, 1]; idx2 <- cor_contrast_ind10[i, 2] -->
+<!--   title <- c(paste0("Beta (CD4) of ", round(CD4_beta[idx1, idx2], 3)), -->
+<!--              paste0("Beta (CD8) of ", round(CD8_beta[idx1, idx2], 3))) -->
+<!--   hex_vis(CD4_subdat, CD8_subdat, idx1, idx2, title) -->
+<!-- } -->
+<!-- ``` -->
+
+
+# 6. Normalized Mutual Information
+
+- It measures how much one random variable gives information about the other. For example, High mutual information indicates a large reduction in uncertainty. 
+- $0 \leq MI(X,Y) \leq  1$, as it is normalized.
+- $MI(X,Y) = \int \int f_{X,Y} (x,y) log_2\frac{f_{X,Y} (x,y)}{f_X{x}f_Y{y}} \; dxdy $
+- $MI(X,Y) = \sum \sum p_{X,Y} (x,y) log \frac{p_{X,Y} (x,y)}{P_X(x)P_Y(y)}$
+
+```{r}
+CD4_NMI <- CD4_compare[[6]]; CD8_NMI <- CD8_compare[[6]]
+
+CD4_NMI_quan <- quantile(abs(CD4_NMI),
+                         probs = c(0.025, 0.975),
+                         na.rm = TRUE)
+
+CD8_NMI_quan <- quantile(abs(CD8_NMI),
+                         probs = c(0.025, 0.975),
+                         na.rm = TRUE)
+```
+
+## Low CD4 & High CD8
+
+```{r}
+cor_contrast9 <- (CD4_NMI < CD4_NMI_quan[[1]]) & (CD8_NMI > CD8_NMI_quan[[2]])
+
+cor_contrast_ind9 <- which(cor_contrast9, arr.ind = T)
+```
+
+```{r}
+nrow(cor_contrast_ind9)
+```
+
+```{r}
+random_ind9 <- sample(nrow(cor_contrast_ind9), 5)
+for (i in random_ind9){
+  idx1 <- cor_contrast_ind9[i, 1]; idx2 <- cor_contrast_ind9[i, 2]
+  title <- c(paste0("NMI (CD4) of ", round(CD4_NMI[idx1, idx2], 3)),
+             paste0("NMI (CD8) of ", round(CD8_NMI[idx1, idx2], 3)))
+  hex_vis(CD4_subdat, CD8_subdat, idx1, idx2, title)
+}
+```
+
+## High CD4 & Low CD8
+
+```{r}
+cor_contrast10 <- (CD4_NMI > CD4_NMI_quan[[2]]) & (CD8_NMI < CD8_NMI_quan[[1]])
+
+cor_contrast_ind10 <- which(cor_contrast10, arr.ind = T)
+```
+
+```{r}
+nrow(cor_contrast_ind10)
+```
+
+```{r}
+random_ind10 <- sample(nrow(cor_contrast_ind10), 5)
+
+for (i in random_ind10){
+  idx1 <- cor_contrast_ind10[i, 1]; idx2 <- cor_contrast_ind10[i, 2]
+  title <- c(paste0("NMI (CD4) of ", round(CD4_NMI[idx1, idx2], 3)),
+             paste0("NMI (CD8) of ", round(CD8_NMI[idx1, idx2], 3)))
+  hex_vis(CD4_subdat, CD8_subdat, idx1, idx2, title)
+}
+```
+
+# 7. Distance Correlation
+
+- it is measure to identify non-linear relationships between two random variables with energy distances.
+- distance correlation is calculated by dividing the distance covariance between X and Y by the product of their distance standard deviations.
+- $0 \leq dCor \leq 1$
+- $dCor(X,Y) = \frac{dCov(Y,Y)}{\sqrt{dVar(X)dVar(Y)}}$
+  - $dCov(X, Y) = \sqrt{\frac{1}{n^2} \sum_{k=1, l=1}^{n} A_{k,l}B_{k,l}}$
+  - $dVar(X) = dCov(X,X) and dVar(Y) = dCov(Y, Y)$
+  
+```{r}
+CD4_dist <- CD4_compare[[7]]; CD8_dist <- CD8_compare[[7]]
+
+CD4_dist_quan <- quantile(abs(CD4_dist),
+                          probs = c(0.05, 0.95),
+                          na.rm = TRUE)
+
+CD8_dist_quan <- quantile(abs(CD8_dist),
+                          probs = c(0.05, 0.95),
+                          na.rm = TRUE)
+```
+
+## Low CD4 & High CD8
+
+```{r}
+cor_contrast11 <- (CD4_dist < CD4_dist_quan[[1]]) & (CD8_dist > CD8_dist_quan[[2]])
+
+cor_contrast_ind11 <- which(cor_contrast11, arr.ind = T)
+```
+
+```{r}
+nrow(cor_contrast_ind11)
+```
+
+```{r}
+random_ind11 <- sample(nrow(cor_contrast_ind11), 5)
+
+for (i in random_ind11){
+  idx1 <- cor_contrast_ind11[i, 1]; idx2 <- cor_contrast_ind11[i, 2]
+  title <- c(paste0("Dist (CD4) of ", round(CD4_dist[idx1, idx2], 3)),
+             paste0("Dist (CD8) of ", round(CD8_dist[idx1, idx2], 3)))
+  hex_vis(CD4_subdat, CD8_subdat, idx1, idx2, title)
+}
+```
+
+## High CD4 & Low CD8
+
+```{r}
+cor_contrast12 <- (CD4_dist > CD4_dist_quan[[2]]) & (CD8_dist < CD8_dist_quan[[1]])
+
+cor_contrast_ind12 <- which(cor_contrast12, arr.ind = T)
+```
+
+```{r}
+nrow(cor_contrast_ind12)
+```
+
+```{r}
+random_ind12 <- sample(nrow(cor_contrast_ind12), 5)
+
+for (i in random_ind12){
+  idx1 <- cor_contrast_ind12[i, 1]; idx2 <- cor_contrast_ind12[i, 2]
+  title <- c(paste0("Dist (CD4) of ", round(CD4_dist[idx1, idx2], 3)),
+             paste0("Dist (CD8) of ", round(CD8_dist[idx1, idx2], 3)))
+  hex_vis(CD4_subdat, CD8_subdat, idx1, idx2, title)
+}
+```
+
+# 8. Chatterjee's XI Correlation
+
+- It measures the degree of dependence between the variables with concept of rank.
+- $0 \leq \xi_n \leq 1$
+-	$\xi_n(X,Y) = 1 - \frac{3\sum_{i=1}^{n-1} |r_{i+1} -r_i|}{n^2-1}$
+- $\xi_n(X,Y) = 1 - \frac{n\sum_{i=1}^{n-1}|r_{i+1}-r_i}{2\sum_{i=1}^{n}l_i(n-l_i)}$
+
+```{r}
+CD4_XI <- CD4_compare[[8]]; CD8_XI <- CD8_compare[[8]]
+
+CD4_XI_quan <- quantile(abs(CD4_XI),
+                        probs = c(0.025, 0.975),
+                        na.rm = TRUE)
+
+CD8_XI_quan <- quantile(abs(CD8_XI),
+                        probs = c(0.025, 0.975),
+                        na.rm = TRUE)
+```
+
+## Low CD4 & High CD8
+
+```{r}
+cor_contrast13 <- (CD4_XI < CD4_pear_quan[[1]]) & (CD8_pear > CD8_pear_quan[[2]])
+
+cor_contrast_ind13 <- which(cor_contrast13, arr.ind = T)
+```
+
+```{r}
+nrow(cor_contrast_ind13)
+```
+
+```{r}
+random_ind13 <- sample(nrow(cor_contrast_ind13), 5)
+
+for (i in random_ind13){
+  idx1 <- cor_contrast_ind13[i, 1]; idx2 <- cor_contrast_ind13[i, 2]
+  title <- c(paste0("XI (CD4) of ", round(CD4_XI[idx1, idx2], 3)),
+             paste0("XI (CD8) of ", round(CD8_XI[idx1, idx2], 3)))
+  hex_vis(CD4_subdat, CD8_subdat, idx1, idx2, title)
+}
+```
+
+
+## High CD4 & Low CD8
+
+```{r}
+cor_contrast14 <- (CD4_XI > CD4_pear_quan[[2]]) & (CD8_XI < CD8_pear_quan[[1]])
+
+cor_contrast_ind14 <- which(cor_contrast14, arr.ind = T)
+```
+
+```{r}
+nrow(cor_contrast_ind14)
+```
+
+```{r}
+random_ind14 <- sample(nrow(cor_contrast_ind14), 5)
+
+for (i in random_ind14){
+  idx1 <- cor_contrast_ind14[i, 1]; idx2 <- cor_contrast_ind14[i, 2]
+  title <- c(paste0("XI (CD4) of ", round(CD4_XI[idx1, idx2], 3)),
+             paste0("XI (CD8) of ", round(CD8_XI[idx1, idx2], 3)))
+  hex_vis(CD4_subdat, CD8_subdat, idx1, idx2, title)
+}
+```
