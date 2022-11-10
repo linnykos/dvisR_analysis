@@ -16,6 +16,8 @@ Seurat::DefaultAssay(bm) <- 'RNA'
 bm <- Seurat::NormalizeData(bm) %>% Seurat::FindVariableFeatures()
 
 mat <- bm[["RNA"]]@counts[Seurat::VariableFeatures(bm, assay = "RNA"),]
+mat <- scale(mat)
+
 print(dim(mat))
 saver_res <- SAVER::saver(x = mat, ncores = 4)
 save(saver_res, bm,
