@@ -145,7 +145,7 @@ dim(sampling_pairs)
 
 num_pairs <- nrow(sampling_pairs)
 criterion_mat <- sapply(1:num_pairs, function(i){
-  if(i %% 100 == 0) print(i)
+  print(i)
   criterion_all(mat[,sampling_pairs[i,]])
 })
 
