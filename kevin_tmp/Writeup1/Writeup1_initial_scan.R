@@ -128,15 +128,14 @@ criterion_all <- function(dat){
   kl_val <- criterion_KLdiv_diagonalGaussian(dat)
   cat("Alpha")
   alpha_val <- criterion_alpha_area(dat)
-  cat("NLM")
-  nlm_val <- tryCatch({criterion_linear_vs_nonparametric_fit(dat)},
-                      error = function(e){NA})
+  # cat("NLM")
+  # nlm_val <- tryCatch({criterion_linear_vs_nonparametric_fit(dat)}, error = function(e){NA})
   
   vec <- c(alpha = alpha_val,
            dbscan = dbscan_val,
            kl = kl_val,
-           ks = ks_val,
-           nlm = nlm_val)
+           ks = ks_val)
+           # nlm = nlm_val)
   vec
 }
 
