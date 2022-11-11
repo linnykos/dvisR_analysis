@@ -96,6 +96,9 @@ criterion_alpha_area <- function(dat){
 }
 
 criterion_linear_vs_nonparametric_fit <- function(dat){
+  dat[,1] <- jitter(dat[,1])
+  dat[,2] <- jitter(dat[,2])
+  
   tmp <- data.frame(x = dat[,1], y = dat[,2])
   nlm_res1 <- npregfast::frfast(y ~ x, data = tmp)
   nlm_vec1 <- nlm_res1$p[,1,1]
@@ -144,10 +147,19 @@ sampling_pairs <- sampling_pairs[order(mapping_val, decreasing = F),]
 dim(sampling_pairs)
 
 num_pairs <- nrow(sampling_pairs)
-criterion_mat <- sapply(1:num_pairs, function(i){
+criterion_mat <- matrix(NA, nrow = num_pairs, ncol = 5)
+for(i in 1:num_pairs){
   print(i)
-  criterion_all(mat[,sampling_pairs[i,]])
-})
+  criterion_mat[i,] <- criterion_all(mat[,sampling_pairs[i,]])
+  
+  if(i %% 100 == 0) {
+    print("Saving")
+    save(mat, criterion_mat,
+         date_of_run, session_info,
+         file = "../../../../../out/dvisR_analysis/kevin_tmp/Writeup1/Writeup1_initial_scan.RData")
+    
+  }
+}
 
 save(mat, criterion_mat,
      date_of_run, session_info,
