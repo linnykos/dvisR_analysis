@@ -20,8 +20,6 @@ table(bm$celltype.l2)
 
 mat <- mat[which(bm$celltype.l2 == "CD4 Naive"),]
 quantile(apply(mat, 2, max))
-rm(list = c("saver_res", "bm"))
-gc(T)
 
 .nonzero_col <- function(mat, col_idx, bool_value){
   stopifnot(inherits(mat, "dgCMatrix"), col_idx %% 1 == 0,
@@ -49,6 +47,8 @@ round(100*quantile(nonzero_percentage_vec))
 length(which(nonzero_percentage_vec >= 0.2))
 mat <- mat[,names(nonzero_percentage_vec)[which(nonzero_percentage_vec >= 0.2)]]
 dim(mat)
+rm(list = c("saver_res", "bm"))
+gc(T)
 
 #######
 
