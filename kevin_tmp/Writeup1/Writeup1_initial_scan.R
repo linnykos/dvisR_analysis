@@ -2,6 +2,9 @@ rm(list=ls())
 library(Seurat)
 library(np)
 library(npregfast)
+library(alphahull)
+library(dbscan)
+library(R.utils)
 
 load("../../../../../out/dvisR_analysis/kevin_tmp/Writeup1/Writeup1_bm_saver.RData")
 
@@ -17,6 +20,8 @@ table(bm$celltype.l2)
 
 mat <- mat[which(bm$celltype.l2 == "CD4 Naive"),]
 quantile(apply(mat, 2, max))
+rm(list = c("saver_res", "bm"))
+gc(T)
 
 .nonzero_col <- function(mat, col_idx, bool_value){
   stopifnot(inherits(mat, "dgCMatrix"), col_idx %% 1 == 0,
