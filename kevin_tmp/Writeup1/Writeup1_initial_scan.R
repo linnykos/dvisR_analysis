@@ -118,7 +118,8 @@ criterion_all <- function(dat){
   ks_val <- criterion_kolmogrov(dat)
   kl_val <- criterion_KLdiv_diagonalGaussian(dat)
   alpha_val <- criterion_alpha_area(dat)
-  nlm_val <- criterion_linear_vs_nonparametric_fit(dat)
+  nlm_val <- tryCatch({criterion_linear_vs_nonparametric_fit(dat)},
+                      error = function(e){NA})
   
   vec <- c(alpha = alpha_val,
            dbscan = dbscan_val,
