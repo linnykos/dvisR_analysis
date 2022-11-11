@@ -100,24 +100,35 @@ criterion_linear_vs_nonparametric_fit <- function(dat){
   dat[,2] <- jitter(dat[,2])
   
   tmp <- data.frame(x = dat[,1], y = dat[,2])
-  nlm_res1 <- npregfast::frfast(y ~ x, data = tmp)
-  nlm_vec1 <- nlm_res1$p[,1,1]
+  bw <- np::npregbw(y ~ x, data = tmp,
+                    bws = .5,
+                    bandwidth.compute = F)
+  nlm_res1 <- np::npreg(bws = bw)
+  nlm_vec1 <- stats::predict(nlm_res1, newdata = tmp)
   lm_res1 <- stats::lm(y ~ x, data = tmp)
-  lm_vec1 <- stats::predict(lm_res1, newdata = data.frame(x = nlm_res1$x))
+  lm_vec1 <- lm_res1$fitted.values
   
-  nlm_res2 <- npregfast::frfast(x ~ y, data = tmp)
-  nlm_vec2 <- nlm_res2$p[,1,1]
+  bw <- np::npregbw(x ~ y, data = tmp,
+                    bws = .5,
+                    bandwidth.compute = F)
+  nlm_res2 <- np::npreg(bws = bw)
+  nlm_vec2 <- stats::predict(nlm_res2, newdata = tmp)
   lm_res2 <- stats::lm(x ~ y, data = tmp)
-  lm_vec2 <- stats::predict(lm_res2, newdata = data.frame(y = nlm_res2$x))
+  lm_vec2 <- lm_res2$fitted.values
   
   mean((lm_vec1 - nlm_vec1)^2) + mean((lm_vec2 - nlm_vec2)^2)
 }
 
 criterion_all <- function(dat){
+  cat("Dbscan")
   dbscan_val <- criterion_dbscan_number(dat)
+  cat("Ks")
   ks_val <- criterion_kolmogrov(dat)
+  cat("KL")
   kl_val <- criterion_KLdiv_diagonalGaussian(dat)
+  cat("Alpha")
   alpha_val <- criterion_alpha_area(dat)
+  cat("NLM")
   nlm_val <- tryCatch({criterion_linear_vs_nonparametric_fit(dat)},
                       error = function(e){NA})
   
@@ -158,7 +169,6 @@ for(i in 1:num_pairs){
     save(mat, criterion_mat,
          date_of_run, session_info,
          file = "../../../../../out/dvisR_analysis/kevin_tmp/Writeup1/Writeup1_initial_scan.RData")
-    
   }
 }
 
