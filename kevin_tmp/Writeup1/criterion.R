@@ -1,3 +1,5 @@
+# see https://github.com/linnykos/dvisR_analysis/blob/05d0937435855bf1a1785183cb01c619f933a9df/experiment/dependency.r
+# see https://github.com/JINJINT/aLDG/blob/main/R/corr.R
 
 criterion_dbscan_number <- function(dat){
   res <- dbscan::dbscan(dat, eps = 0.1, minPts = 10, borderPoints = F)
@@ -80,4 +82,47 @@ correlation_beta <- function(dat){
 
 correlation_energy <- function(dat){
   as.numeric(energy::dcor2d(dat[,1], dat[,2]))
+}
+
+correlation_hoeffd <- function(dat){
+  Hmisc::hoeffd(dat[,1], dat[,2])$D[1,2]
+}
+
+correlation_mic <- function(dat){
+  minerva::mine(dat[,1], dat[,2])$MIC
+}
+
+correlation_nmi <- function(dat){
+  colnames(dat) <- c("x", "y")
+  break_list <- list(x = as.numeric(quantile(dat[,1], probs = seq(0,1,length.out=7))),
+                     y = as.numeric(quantile(dat[,2], probs = seq(0,1,length.out=7))))
+  res <- zebu::lassie(dat, continuous = c(1,2), breaks = break_list, measure = "npmi")
+  res$global
+}
+
+correlation_hsic <- function(dat){
+  num <- dHSIC::dhsic(dat[,1],dat[,2])$dHSIC
+  denom <- sqrt(dHSIC::dhsic(dat[,1],dat[,1])$dHSIC * dHSIC::dhsic(dat[,2],dat[,2])$dHSIC)
+  num/denom
+}
+
+correlation_taustar <- function(dat){
+  res <- TauStar::tStar(dat[,1], dat[,2])
+  # theoretically, taustar lies in range [-1/3,2/3], where 0 represents independence,
+  # therefore we do the following to rescale it to [-1,1] with 0 still represents independence
+  if(res<=0) return(res*3)
+  if(res>0) return(res*3/2)
+}
+
+correlation_em <- function(dat){
+  res <- mclust::Mclust(dat, 
+                        G = 9, 
+                        modelNames = "VVI",
+                        verbose = F)
+  proportion <- res$param$pro
+  area_vec <- sapply(1:9, function(k){
+    tmp <- res$param$variance$sigma[,,k]
+    prod(diag(tmp))
+  })
+  sum(proportion * area_vec)
 }

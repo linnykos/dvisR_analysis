@@ -1,9 +1,15 @@
 rm(list=ls())
-library(Seurat)
-library(npregfast)
-library(alphahull)
 library(dbscan)
+library(energy)
+library(Hmisc)
+library(mclust)
+library(minerva)
+library(npregfast)
+library(pcaPP)
 library(R.utils)
+library(Seurat)
+library(TauStar)
+library(XICOR)
 
 load("../../../../../out/dvisR_analysis/kevin_tmp/Writeup1/Writeup1_bm_saver.RData")
 # load("../../../out/dvisR_analysis/kevin_tmp/Writeup1/Writeup1_bm_saver.RData")
@@ -60,27 +66,39 @@ gc(T)
 
 criterion_all <- function(dat){
   dbscan_val <- criterion_dbscan_number(dat)
+  em_val <- correlation_em(dat)
   kl_val <- criterion_KLdiv_diagonalGaussian(dat)
   ks_val <- criterion_kolmogrov(dat)
-  nlm_val <- tryCatch({criterion_linear_vs_nonparametric_fit(dat)}, error = function(e){NA})
+  nlm_val <- criterion_linear_vs_nonparametric_fit(dat)
   
-  pearson_val <- correlation_pearson(dat)
-  spearman_val <- correlation_spearman(dat)
-  kendall_val <- correlation_kendall(dat)
-  xi_val <- correlation_xi(dat)
   beta_val <- correlation_beta(dat)
   energy_val <- correlation_energy(dat)
+  hoeffd_val <- correlation_hoeffd(dat)
+  hsic_val <- correlation_hsic(dat)
+  kendall_val <- correlation_kendall(dat)
+  mic_val <- correlation_mic(dat)
+  nmi_val <- correlation_nmi(dat)
+  pearson_val <- correlation_pearson(dat)
+  spearman_val <- correlation_spearman(dat)
+  taustar_val <- correlation_taustar(dat)
+  xi_val <- correlation_xi(dat)
   
-  vec <- c( beta = beta_val,
-            dbscan = dbscan_val,
-            energy = energy_val,
-            kendall = kendall_val,
-            kl = kl_val,
-            ks = ks_val,
-            nlm = nlm_val,
-            pearson = pearson_val,
-            spearman = spearman_val,
-            xi = xi_val)
+  vec <- c(beta = beta_val,
+           dbscan = dbscan_val,
+           em = em_val,
+           energy = energy_val,
+           hsic = hsic_val,
+           hoeff = hoeffd_val,
+           kendall = kendall_val,
+           kl = kl_val,
+           ks = ks_val,
+           mic = mic_val,
+           nlm = nlm_val,
+           nmi = nmi_val,
+           pearson = pearson_val,
+           spearman = spearman_val,
+           taustar = taustar_val,
+           xi = xi_val)
   vec
 }
 
@@ -103,10 +121,12 @@ sampling_pairs <- sampling_pairs[order(mapping_val, decreasing = F),]
 dim(sampling_pairs)
 
 num_pairs <- nrow(sampling_pairs)
-criterion_mat <- matrix(NA, nrow = num_pairs, ncol = 10)
+criterion_mat <- matrix(NA, nrow = num_pairs, ncol = 16)
 for(i in 1:num_pairs){
   print(i)
-  criterion_mat[i,] <- criterion_all(mat[,sampling_pairs[i,]])
+  tmp <- criterion_all(mat[,sampling_pairs[i,]])
+  if(i == 1) colnames(criterion_mat) <- names(tmp)
+  criterion_mat[i,] <- tmp
   
   if(i %% 100 == 0) {
     print("Saving")
