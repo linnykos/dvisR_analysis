@@ -41,6 +41,8 @@ plot_density <- function(mat,
                 c(xlim[1], ylim[2]),
                 c(xlim[2], ylim[1]),
                 c(xlim[2], ylim[2]))
+  mat2 <- mat2[which(mat2[,1] >= xlim[1] & mat2[,1] <= xlim[2]),]
+  mat2 <- mat2[which(mat2[,2] >= ylim[1] & mat2[,2] <= ylim[2]),]
   f1 <- MASS::kde2d(mat2[,1], mat2[,2], n = n)
   graphics::image(f1,
                   col = density_colors,

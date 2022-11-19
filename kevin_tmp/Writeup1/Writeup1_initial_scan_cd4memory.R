@@ -28,7 +28,8 @@ quantile(mat)
 quantile(apply(mat, 2, max))
 table(bm$celltype.l2)
 
-mat <- mat[which(bm$celltype.l2 == "CD4 Naive"),]
+celltype <- "CD4 Memory"
+mat <- mat[which(bm$celltype.l2 == celltype),]
 quantile(apply(mat, 2, max))
 
 .nonzero_col <- function(mat, col_idx, bool_value){
@@ -48,17 +49,17 @@ quantile(apply(mat, 2, max))
   }
 }
 
-tmp <- Matrix::t(bm[["RNA"]]@counts[Seurat::VariableFeatures(bm),])
+tmp <- Matrix::t(bm[["RNA"]]@counts[Seurat::VariableFeatures(bm),which(bm$celltype.l2 == celltype)])
 nonzero_percentage_vec <- sapply(1:ncol(tmp), function(j){
   length(.nonzero_col(tmp, col_idx = j, bool_value = F))/nrow(tmp)
 })
 names(nonzero_percentage_vec) <- colnames(tmp)
 round(100*quantile(nonzero_percentage_vec))
-length(which(nonzero_percentage_vec >= 0.2))
-mat <- mat[,names(nonzero_percentage_vec)[which(nonzero_percentage_vec >= 0.2)]]
-dim(mat)
+length(which(nonzero_percentage_vec >= 0.1))
+mat <- mat[,names(nonzero_percentage_vec)[which(nonzero_percentage_vec >= 0.1)]]
 mat <- mat[,which(matrixStats::colVars(mat) >= 1e-4)]
 mat <- scale(mat)
+dim(mat)
 rm(list = c("saver_res", "bm"))
 gc(T)
 
@@ -107,7 +108,7 @@ criterion_all <- function(dat){
 #######
 
 set.seed(10)
-num_pairs <- 5000
+num_pairs <- 10000
 p <- ncol(mat)
 sampling_pairs <- cbind(sample(1:p, size = num_pairs, replace = T), 
                         sample(1:p, size = num_pairs, replace = T))
@@ -132,12 +133,12 @@ for(i in 1:num_pairs){
     print("Saving")
     save(mat, criterion_mat, sampling_pairs,
          date_of_run, session_info,
-         file = "../../../../../out/dvisR_analysis/kevin_tmp/Writeup1/Writeup1_initial_scan.RData")
+         file = paste0("../../../../../out/dvisR_analysis/kevin_tmp/Writeup1/Writeup1_initial_scan_", celltype, ".RData"))
   }
 }
 
 save(mat, criterion_mat, sampling_pairs,
      date_of_run, session_info,
-     file = "../../../../../out/dvisR_analysis/kevin_tmp/Writeup1/Writeup1_initial_scan.RData")
+     file = paste0("../../../../../out/dvisR_analysis/kevin_tmp/Writeup1/Writeup1_initial_scan_", celltype, ".RData"))
 
 
